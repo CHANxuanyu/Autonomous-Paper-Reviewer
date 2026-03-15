@@ -24,7 +24,7 @@ An enterprise-grade, multi-agent system that autonomously reviews academic paper
 * 🕵️‍♂️ **Agentic Fact-Checking (Tool Calling)**: Employs the ReAct paradigm. The Reviewer Agent dynamically invokes an external `search_arxiv` tool to verify novelty and identify missing baseline comparisons in real-time.
 * ⚡ **Asynchronous & Decoupled Backend**: Built on **FastAPI** with **Celery + Redis** task queues. Safely offloads long-running LLM reasoning and heavy document vectorization, ensuring a non-blocking, highly responsive client experience.
 * 🗄️ **Robust Vector Retrieval**: Backed by **PostgreSQL & pgvector**, enabling hybrid retrieval strategies with exact source-citation to eliminate LLM hallucinations.
-* 🛡️ **Strict Structured Outputs**: Leverages Pydantic and OpenAI's strict structured output schema to guarantee 100% deterministic JSON report formats (Summary, Strengths, Weaknesses, Questions).
+* 🛡️ **Strict Structured Outputs**: Leverages Pydantic and OpenAI's strict structured output schema to guarantee 100% deterministic JSON report formats.
 * 🎨 **Polished UX/UI**: A beautiful Streamlit frontend featuring custom CSS, intuitive sidebar controls, immersive loading states, and elegant tabbed data presentation.
 
 ## 🧠 Architecture Overview
@@ -34,7 +34,7 @@ An enterprise-grade, multi-agent system that autonomously reviews academic paper
 3.  **Planning Phase**: A Planner Agent extracts metadata and constructs a targeted retrieval strategy.
 4.  **Reasoning Phase (Tool Use)**: The Reviewer Agent retrieves vector chunks + linked images. It decides whether to search ArXiv to verify claims.
 5.  **Generation**: Using GPT-4o, it synthesizes the internal PDF context with external ArXiv references into a strict JSON schema.
-6.  **Polling**: The Streamlit UI polls FastAPI, updating the user with engaging UI state changes until the final balloons 🎈 drop.
+6.  **Polling**: The Streamlit UI polls FastAPI, updating the user with engaging UI state changes.
 
 ## 🛠️ Getting Started
 
@@ -48,6 +48,22 @@ An enterprise-grade, multi-agent system that autonomously reviews academic paper
 
 1. **Clone the repository:**
    ```bash
-   git clone [https://github.com/YOUR_USERNAME/Autonomous-Paper-Reviewer.git](https://github.com/YOUR_USERNAME/Autonomous-Paper-Reviewer.git)
-   cd Autonomous-Paper-Reviewer
-   ```
+   git clone [https://github.com/CHANxuanyu/Academic_Paper_Analyzer.git](https://github.com/CHANxuanyu/Academic_Paper_Analyzer.git)
+   cd Academic_Paper_Analyzer
+2. **Environment Variables:**
+Create a .env file in the root directory:
+"OPENAI_API_KEY=sk-proj-your-api-key-here
+DATABASE_URL=postgresql+psycopg2://user:password@localhost:5432/dbname
+REDIS_URL=redis://localhost:6379/0"
+
+3. **Bootstrap & Run:**
+We provide a convenient script to install dependencies, run DB migrations, and start all services (FastAPI, Celery, Streamlit):
+ ```bash
+chmod +x start_servers.sh
+./start_servers.sh --bootstrap
+
+🤝 Contributing
+Contributions, issues, and feature requests are welcome! Feel free to check the issues page.
+
+📝 License
+This project is MIT licensed.
