@@ -52,6 +52,8 @@ We provide a convenient script to install dependencies, run DB migrations, and s
  ```bash
 chmod +x start_servers.sh
 ./start_servers.sh --bootstrap
+```
+
 
 🤝 Contributing
 Contributions, issues, and feature requests are welcome! Feel free to check the issues page.
