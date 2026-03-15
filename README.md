@@ -8,15 +8,6 @@
 
 An enterprise-grade, multi-agent system that autonomously reviews academic papers. Moving beyond standard text-based RAG, this system implements **Multimodal Vision RAG**, real-time **ArXiv fact-checking**, and an **Asynchronous Event-Driven Architecture** to deliver expert-level, hallucination-free academic feedback.
 
-## ✨ 📸 See It In Action
-
-*(Replace these placeholder links with your actual awesome UI screenshots)*
-
-![Dashboard Overview](https://via.placeholder.com/800x400.png?text=Modern+Streamlit+Dashboard+Screenshot)
-*The modern, playful UI featuring live status polling and a tabbed report view.*
-
-![Vision RAG & Fact Checking](https://via.placeholder.com/800x400.png?text=ArXiv+Fact+Checking+Cards+Screenshot)
-*Agentic fact-checking: The system autonomously queries ArXiv to cross-validate authors' claims.*
 
 ## 🚀 Core Features
 
