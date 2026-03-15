@@ -1,0 +1,321 @@
+ 
+ -------------- celery@LAPTOP-BPT3S5D9 v5.6.2 (recovery)
+--- ***** ----- 
+-- ******* ---- Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.39 2026-03-14 22:35:11
+- *** --- * --- 
+- ** ---------- [config]
+- ** ---------- .> app:         academic_paper_analyzer:0x743233324e60
+- ** ---------- .> transport:   redis://localhost:6379/0
+- ** ---------- .> results:     redis://localhost:6379/0
+- *** --- * --- .> concurrency: 12 (prefork)
+-- ******* ---- .> task events: OFF (enable -E to monitor tasks in this worker)
+--- ***** ----- 
+ -------------- [queues]
+                .> celery           exchange=celery(direct) key=celery
+                
+
+[tasks]
+  . workers.review_tasks.run_review_task
+
+[2026-03-14 22:35:12,330: INFO/MainProcess] Connected to redis://localhost:6379/0
+[2026-03-14 22:35:12,334: INFO/MainProcess] mingle: searching for neighbors
+[2026-03-14 22:35:13,351: INFO/MainProcess] mingle: all alone
+[2026-03-14 22:35:13,366: INFO/MainProcess] celery@LAPTOP-BPT3S5D9 ready.
+[2026-03-14 22:48:58,803: INFO/MainProcess] Task workers.review_tasks.run_review_task[71bfd30f-3397-4114-bc3e-803543e942e2] received
+[2026-03-14 22:48:58,850: ERROR/ForkPoolWorker-6] Task workers.review_tasks.run_review_task[71bfd30f-3397-4114-bc3e-803543e942e2] raised unexpected: InvalidRequestError("When initializing mapper Mapper[Document(documents)], expression 'User' failed to locate a name ('User'). If this is a class name, consider adding this relationship() to the <class 'models.document.Document'> class after both dependent classes have been defined.")
+Traceback (most recent call last):
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/sqlalchemy/orm/clsregistry.py", line 516, in _resolve_name
+    rval = d[token]
+           ~^^^^^^^
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/sqlalchemy/util/_collections.py", line 340, in __missing__
+    self[key] = val = self.creator(key)
+                      ^^^^^^^^^^^^^^^^^
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/sqlalchemy/orm/clsregistry.py", line 484, in _access_cls
+    return self.fallback[key]
+           ~~~~~~~~~~~~~^^^^^
+KeyError: 'User'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/celery/app/trace.py", line 479, in trace_task
+    R = retval = fun(*args, **kwargs)
+                 ^^^^^^^^^^^^^^^^^^^^
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/celery/app/trace.py", line 779, in __protected_call__
+    return self.run(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/chan/projects/Academic_Paper_Analyzer/workers/review_tasks.py", line 129, in run_review_task
+    review_task = db.scalar(select(ReviewTask).where(ReviewTask.id == UUID(task_id)))
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2399, in scalar
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2249, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/sqlalchemy/orm/context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/sqlalchemy/sql/elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1633, in _execute_clauseelement
+    compiled_sql, extracted_params, cache_hit = elem._compile_w_cache(
+                                                ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/sqlalchemy/sql/elements.py", line 716, in _compile_w_cache
+    compiled_sql = self._compiler(
+                   ^^^^^^^^^^^^^^^
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/sqlalchemy/sql/elements.py", line 324, in _compiler
+    return dialect.statement_compiler(dialect, self, **kw)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/sqlalchemy/sql/compiler.py", line 1461, in __init__
+    Compiled.__init__(self, dialect, statement, **kwargs)
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/sqlalchemy/sql/compiler.py", line 901, in __init__
+    self.string = self.process(self.statement, **compile_kwargs)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/sqlalchemy/sql/compiler.py", line 947, in process
+    return obj._compiler_dispatch(self, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/sqlalchemy/sql/visitors.py", line 138, in _compiler_dispatch
+    return meth(self, **kw)  # type: ignore  # noqa: E501
+           ^^^^^^^^^^^^^^^^
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/sqlalchemy/sql/compiler.py", line 4807, in visit_select
+    compile_state = select_stmt._compile_state_factory(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/sqlalchemy/sql/base.py", line 775, in create_for_statement
+    return klass.create_for_statement(statement, compiler, **kw)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/sqlalchemy/orm/context.py", line 447, in create_for_statement
+    return cls._create_orm_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/sqlalchemy/orm/context.py", line 1175, in _create_orm_context
+    _QueryEntity.to_compile_state(
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/sqlalchemy/orm/context.py", line 2628, in to_compile_state
+    _MapperEntity(
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/sqlalchemy/orm/context.py", line 2708, in __init__
+    entity._post_inspect
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/sqlalchemy/util/langhelpers.py", line 1235, in __get__
+    obj.__dict__[self.__name__] = result = self.fget(obj)
+                                           ^^^^^^^^^^^^^^
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/sqlalchemy/orm/mapper.py", line 2733, in _post_inspect
+    self._check_configure()
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/sqlalchemy/orm/mapper.py", line 2410, in _check_configure
+    _configure_registries({self.registry}, cascade=True)
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/sqlalchemy/orm/mapper.py", line 4227, in _configure_registries
+    _do_configure_registries(registries, cascade)
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/sqlalchemy/orm/mapper.py", line 4268, in _do_configure_registries
+    mapper._post_configure_properties()
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/sqlalchemy/orm/mapper.py", line 2427, in _post_configure_properties
+    prop.init()
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/sqlalchemy/orm/interfaces.py", line 595, in init
+    self.do_init()
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/sqlalchemy/orm/relationships.py", line 1655, in do_init
+    self._setup_entity()
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/sqlalchemy/orm/relationships.py", line 1865, in _setup_entity
+    self._clsregistry_resolve_name(argument)(),
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/sqlalchemy/orm/clsregistry.py", line 520, in _resolve_name
+    self._raise_for_name(name, err)
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/sqlalchemy/orm/clsregistry.py", line 501, in _raise_for_name
+    raise exc.InvalidRequestError(
+sqlalchemy.exc.InvalidRequestError: When initializing mapper Mapper[Document(documents)], expression 'User' failed to locate a name ('User'). If this is a class name, consider adding this relationship() to the <class 'models.document.Document'> class after both dependent classes have been defined.
+
+worker: Warm shutdown (MainProcess)
+ 
+ -------------- celery@LAPTOP-BPT3S5D9 v5.6.2 (recovery)
+--- ***** ----- 
+-- ******* ---- Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.39 2026-03-14 23:01:40
+- *** --- * --- 
+- ** ---------- [config]
+- ** ---------- .> app:         academic_paper_analyzer:0x759b16891c40
+- ** ---------- .> transport:   redis://localhost:6379/0
+- ** ---------- .> results:     redis://localhost:6379/0
+- *** --- * --- .> concurrency: 12 (prefork)
+-- ******* ---- .> task events: OFF (enable -E to monitor tasks in this worker)
+--- ***** ----- 
+ -------------- [queues]
+                .> celery           exchange=celery(direct) key=celery
+                
+
+[tasks]
+  . workers.review_tasks.run_review_task
+
+[2026-03-14 23:01:41,323: INFO/MainProcess] Connected to redis://localhost:6379/0
+[2026-03-14 23:01:41,327: INFO/MainProcess] mingle: searching for neighbors
+[2026-03-14 23:01:42,335: INFO/MainProcess] mingle: all alone
+[2026-03-14 23:01:42,352: INFO/MainProcess] celery@LAPTOP-BPT3S5D9 ready.
+[2026-03-14 23:04:56,587: INFO/MainProcess] Task workers.review_tasks.run_review_task[7ae1e200-e47e-4722-a58c-d9e260693101] received
+[2026-03-14 23:04:59,190: INFO/ForkPoolWorker-6] HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 429 Too Many Requests"
+[2026-03-14 23:04:59,190: INFO/ForkPoolWorker-6] Retrying request to /embeddings in 0.428367 seconds
+[2026-03-14 23:05:00,654: INFO/ForkPoolWorker-6] HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 429 Too Many Requests"
+[2026-03-14 23:05:00,655: INFO/ForkPoolWorker-6] Retrying request to /embeddings in 0.839836 seconds
+[2026-03-14 23:05:01,602: INFO/ForkPoolWorker-6] HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 429 Too Many Requests"
+[2026-03-14 23:05:01,623: INFO/MainProcess] Task workers.review_tasks.run_review_task[7ae1e200-e47e-4722-a58c-d9e260693101] received
+[2026-03-14 23:05:01,627: INFO/ForkPoolWorker-6] Task workers.review_tasks.run_review_task[7ae1e200-e47e-4722-a58c-d9e260693101] retry: Retry in 2s: RateLimitError("Error code: 429 - {'error': {'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type': 'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}}")
+[2026-03-14 23:05:03,954: INFO/ForkPoolWorker-6] HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 429 Too Many Requests"
+[2026-03-14 23:05:03,954: INFO/ForkPoolWorker-6] Retrying request to /embeddings in 0.396829 seconds
+[2026-03-14 23:05:04,457: INFO/ForkPoolWorker-6] HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 429 Too Many Requests"
+[2026-03-14 23:05:04,457: INFO/ForkPoolWorker-6] Retrying request to /embeddings in 0.802435 seconds
+[2026-03-14 23:05:05,358: INFO/ForkPoolWorker-6] HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 429 Too Many Requests"
+[2026-03-14 23:05:05,372: INFO/MainProcess] Task workers.review_tasks.run_review_task[7ae1e200-e47e-4722-a58c-d9e260693101] received
+[2026-03-14 23:05:05,373: INFO/ForkPoolWorker-6] Task workers.review_tasks.run_review_task[7ae1e200-e47e-4722-a58c-d9e260693101] retry: Retry in 4s: RateLimitError("Error code: 429 - {'error': {'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type': 'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}}")
+[2026-03-14 23:05:09,804: INFO/ForkPoolWorker-6] HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 429 Too Many Requests"
+[2026-03-14 23:05:09,805: INFO/ForkPoolWorker-6] Retrying request to /embeddings in 0.456139 seconds
+[2026-03-14 23:05:10,356: INFO/ForkPoolWorker-6] HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 429 Too Many Requests"
+[2026-03-14 23:05:10,356: INFO/ForkPoolWorker-6] Retrying request to /embeddings in 0.810479 seconds
+[2026-03-14 23:05:11,359: INFO/ForkPoolWorker-6] HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 429 Too Many Requests"
+[2026-03-14 23:05:11,376: INFO/ForkPoolWorker-6] Task workers.review_tasks.run_review_task[7ae1e200-e47e-4722-a58c-d9e260693101] succeeded in 2.0031277950001822s: None
+[2026-03-14 23:10:39,181: INFO/MainProcess] Task workers.review_tasks.run_review_task[b719c477-3688-4663-b52b-a711901cf8e3] received
+[2026-03-14 23:10:40,671: INFO/ForkPoolWorker-6] HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+[2026-03-14 23:10:51,479: INFO/ForkPoolWorker-6] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2026-03-14 23:10:52,681: INFO/ForkPoolWorker-6] HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+[2026-03-14 23:10:53,075: INFO/MainProcess] Task workers.review_tasks.run_review_task[b719c477-3688-4663-b52b-a711901cf8e3] received
+[2026-03-14 23:10:53,078: INFO/ForkPoolWorker-6] Task workers.review_tasks.run_review_task[b719c477-3688-4663-b52b-a711901cf8e3] retry: Retry in 1s: TypeError('Object of type UUID is not JSON serializable')
+[2026-03-14 23:10:54,640: INFO/ForkPoolWorker-6] HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+[2026-03-14 23:11:08,062: INFO/ForkPoolWorker-6] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2026-03-14 23:11:08,528: INFO/ForkPoolWorker-6] HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+[2026-03-14 23:11:09,012: INFO/ForkPoolWorker-6] Task workers.review_tasks.run_review_task[b719c477-3688-4663-b52b-a711901cf8e3] succeeded in 14.936262780000106s: None
+
+worker: Warm shutdown (MainProcess)
+ 
+ -------------- celery@LAPTOP-BPT3S5D9 v5.6.2 (recovery)
+--- ***** ----- 
+-- ******* ---- Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.39 2026-03-14 23:14:24
+- *** --- * --- 
+- ** ---------- [config]
+- ** ---------- .> app:         academic_paper_analyzer:0x7f40e5dd1ca0
+- ** ---------- .> transport:   redis://localhost:6379/0
+- ** ---------- .> results:     redis://localhost:6379/0
+- *** --- * --- .> concurrency: 12 (prefork)
+-- ******* ---- .> task events: OFF (enable -E to monitor tasks in this worker)
+--- ***** ----- 
+ -------------- [queues]
+                .> celery           exchange=celery(direct) key=celery
+                
+
+[tasks]
+  . workers.review_tasks.run_review_task
+
+[2026-03-14 23:14:25,905: INFO/MainProcess] Connected to redis://localhost:6379/0
+[2026-03-14 23:14:25,912: INFO/MainProcess] mingle: searching for neighbors
+[2026-03-14 23:14:26,933: INFO/MainProcess] mingle: all alone
+[2026-03-14 23:14:26,950: INFO/MainProcess] celery@LAPTOP-BPT3S5D9 ready.
+[2026-03-14 23:16:28,207: INFO/MainProcess] Task workers.review_tasks.run_review_task[ce433496-3945-40d5-b040-f53bbd12fc3a] received
+[2026-03-14 23:16:29,655: INFO/ForkPoolWorker-6] HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+[2026-03-14 23:16:42,203: INFO/ForkPoolWorker-6] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2026-03-14 23:16:42,851: INFO/ForkPoolWorker-6] HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+[2026-03-14 23:16:48,824: INFO/ForkPoolWorker-6] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2026-03-14 23:16:48,848: INFO/ForkPoolWorker-6] Task workers.review_tasks.run_review_task[ce433496-3945-40d5-b040-f53bbd12fc3a] succeeded in 20.63896885899885s: None
+[2026-03-15 00:41:46,558: WARNING/MainProcess] consumer: Connection to broker lost. Trying to re-establish the connection...
+Traceback (most recent call last):
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/redis/retry.py", line 120, in call_with_retry
+    return do()
+           ^^^^
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/redis/client.py", line 1115, in <lambda>
+    lambda: command(*args, **kwargs),
+            ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/redis/client.py", line 1159, in try_read
+    return conn.read_response(disconnect_on_error=False, push_request=True)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/redis/connection.py", line 1341, in read_response
+    response = self._parser.read_response(disable_decoding=disable_decoding)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/redis/_parsers/resp2.py", line 15, in read_response
+    result = self._read_response(disable_decoding=disable_decoding)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/redis/_parsers/resp2.py", line 25, in _read_response
+    raw = self._buffer.readline()
+          ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/redis/_parsers/socket.py", line 115, in readline
+    self._read_from_socket()
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/redis/_parsers/socket.py", line 68, in _read_from_socket
+    raise ConnectionError(SERVER_CLOSED_CONNECTION_ERROR)
+redis.exceptions.ConnectionError: Connection closed by server.
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/redis/connection.py", line 1341, in read_response
+    response = self._parser.read_response(disable_decoding=disable_decoding)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/redis/_parsers/resp2.py", line 15, in read_response
+    result = self._read_response(disable_decoding=disable_decoding)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/redis/_parsers/resp2.py", line 25, in _read_response
+    raw = self._buffer.readline()
+          ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/redis/_parsers/socket.py", line 115, in readline
+    self._read_from_socket()
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/redis/_parsers/socket.py", line 65, in _read_from_socket
+    data = sock.recv(socket_read_size)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ConnectionResetError: [Errno 104] Connection reset by peer
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/celery/worker/consumer/consumer.py", line 346, in start
+    blueprint.start(self)
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/celery/bootsteps.py", line 116, in start
+    step.start(parent)
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/celery/worker/consumer/consumer.py", line 788, in start
+    c.loop(*c.loop_args())
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/celery/worker/loops.py", line 96, in asynloop
+    next(loop)
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/kombu/asynchronous/hub.py", line 377, in create_loop
+    cb(*cbargs)
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/kombu/transport/redis.py", line 1394, in on_readable
+    self.cycle.on_readable(fileno)
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/kombu/transport/redis.py", line 579, in on_readable
+    chan.handlers[type]()
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/kombu/transport/redis.py", line 931, in _receive
+    ret.append(self._receive_one(c))
+               ^^^^^^^^^^^^^^^^^^^^
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/kombu/transport/redis.py", line 941, in _receive_one
+    response = c.parse_response()
+               ^^^^^^^^^^^^^^^^^^
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/redis/client.py", line 1161, in parse_response
+    response = self._execute(conn, try_read)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/redis/client.py", line 1114, in _execute
+    response = conn.retry.call_with_retry(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/redis/retry.py", line 127, in call_with_retry
+    fail(error, failures)
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/redis/client.py", line 1111, in failure_callback
+    self._reconnect(conn, error, failure_count, start_time, command_name)
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/redis/client.py", line 1085, in _reconnect
+    conn.connect()
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/redis/connection.py", line 975, in connect
+    self.retry.call_with_retry(
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/redis/retry.py", line 132, in call_with_retry
+    raise error
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/redis/retry.py", line 120, in call_with_retry
+    return do()
+           ^^^^
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/redis/connection.py", line 976, in <lambda>
+    lambda: self.connect_check_health(
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/redis/connection.py", line 1030, in connect_check_health
+    self.on_connect_check_health(check_health=check_health)
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/redis/connection.py", line 1155, in on_connect_check_health
+    self.read_response()
+  File "/home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/redis/connection.py", line 1349, in read_response
+    raise ConnectionError(f"Error while reading from {host_error} : {e.args}")
+redis.exceptions.ConnectionError: Error while reading from localhost:6379 : (104, 'Connection reset by peer')
+[2026-03-15 00:41:46,579: WARNING/MainProcess] /home/chan/projects/Academic_Paper_Analyzer/.venv/lib/python3.12/site-packages/celery/worker/consumer/consumer.py:397: CPendingDeprecationWarning: 
+In Celery 5.1 we introduced an optional breaking change which
+on connection loss cancels all currently executed tasks with late acknowledgement enabled.
+These tasks cannot be acknowledged as the connection is gone, and the tasks are automatically redelivered
+back to the queue. You can enable this behavior using the worker_cancel_long_running_tasks_on_connection_loss
+setting. In Celery 5.1 it is set to False by default. The setting will be set to True by default in Celery 6.0.
+
+  warnings.warn(CANCEL_TASKS_BY_DEFAULT, CPendingDeprecationWarning)
+
+[2026-03-15 00:41:46,587: ERROR/MainProcess] consumer: Cannot connect to redis://localhost:6379/0: Error while reading from localhost:6379 : (104, 'Connection reset by peer').
+Trying again in 2.00 seconds... (1/100)
+
+                                     
