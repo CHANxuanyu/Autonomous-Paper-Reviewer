@@ -16,6 +16,18 @@ if [[ ! -x ".venv/bin/pip" ]]; then
   exit 1
 fi
 
+if [[ "${1:-}" == "--bootstrap" ]]; then
+  if command -v sudo >/dev/null 2>&1; then
+    sudo apt-get update
+    sudo apt-get install -y poppler-utils tesseract-ocr libmagic1 libgl1
+  fi
+
+  ".venv/bin/pip" install -r requirements.txt
+  ".venv/bin/python" scripts/migrate_add_linked_image_path.py
+  echo "Multimodal bootstrap completed. Start the stack with ./start_servers.sh --background"
+  exit 0
+fi
+
 source ".venv/bin/activate"
 
 if [[ -f ".env" ]]; then

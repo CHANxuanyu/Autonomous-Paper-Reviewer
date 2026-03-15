@@ -145,7 +145,7 @@ def run_review_task(self: Task, task_id: str) -> None:
 
         try:
             _set_review_status(db, review_task, ReviewTaskStatus.PARSING_DOC)
-            parsed_document = parser.parse_pdf(document.file_url)
+            parsed_document = parser.parse_pdf(document.file_url, document_id=document.id)
 
             # After parsing succeeds, sync document metadata/status and commit immediately.
             document.title = parsed_document.get("title") or document.title

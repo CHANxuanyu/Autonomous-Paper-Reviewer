@@ -36,6 +36,7 @@ def create_vector_chunks(
             section_name=chunk_payload.get("section_name"),
             chunk_index=chunk_payload.get("chunk_index", index),
             token_count=chunk_payload.get("token_count"),
+            linked_image_path=chunk_payload.get("linked_image_path"),
         )
         vector_chunks.append(vector_chunk)
 

@@ -10,6 +10,17 @@ from pydantic import BaseModel, ConfigDict, Field
 from .enums import ReviewTaskStatus
 
 
+class ExternalReferenceSchema(BaseModel):
+    """A related paper retrieved from ArXiv during external verification."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    title: str
+    authors: list[str] = Field(default_factory=list)
+    published_date: str | None = None
+    summary: str | None = None
+
+
 class ReviewResultSchema(BaseModel):
     """Structured review report persisted in review_tasks.result_json."""
 
@@ -20,6 +31,7 @@ class ReviewResultSchema(BaseModel):
     weaknesses: list[str] = Field(default_factory=list)
     missing_evidence: list[str] = Field(default_factory=list)
     questions_for_authors: list[str] = Field(default_factory=list)
+    external_references_checked: list[ExternalReferenceSchema] = Field(default_factory=list)
 
 
 class ReviewCreateRequest(BaseModel):

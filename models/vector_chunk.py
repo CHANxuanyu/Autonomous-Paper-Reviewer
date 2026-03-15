@@ -35,6 +35,7 @@ class VectorChunk(TimestampedUUIDMixin, Base):
     section_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
     token_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    linked_image_path: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     document: Mapped["Document"] = relationship(back_populates="vector_chunks")
     evidences: Mapped[list["Evidence"]] = relationship(back_populates="chunk")

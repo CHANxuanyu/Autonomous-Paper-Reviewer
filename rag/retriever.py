@@ -146,6 +146,7 @@ def retrieve_evidences(
                     "claim": spec["claim"],
                     "confidence_score": _confidence_from_distance(float(distance), overlap),
                     "evidence_type": spec["evidence_type"],
+                    "linked_image_path": chunk.linked_image_path,
                 }
                 evidence_key = (chunk.id, spec["claim"])
                 existing = evidence_by_key.get(evidence_key)

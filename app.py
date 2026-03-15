@@ -22,12 +22,22 @@ STATUS_FLOW = [
 STATUS_COPY = {
     "PENDING": "Queued and waiting for a worker slot.",
     "PARSING_DOC": "Reading the PDF and extracting the paper structure.",
-    "VECTORIZING": "Building embeddings for retrieval and evidence search.",
-    "AGENT_PLANNING": "Drafting the review plan and focus map.",
-    "EVIDENCE_RETRIEVAL": "Pulling the most relevant paper chunks for support.",
-    "REPORT_GENERATING": "Composing the final structured review.",
+    "VECTORIZING": "Building multimodal chunks, embeddings, and visual anchors.",
+    "AGENT_PLANNING": "Drafting the review strategy and deciding what deserves attention.",
+    "EVIDENCE_RETRIEVAL": "Pulling text evidence and linked figures from the vector index.",
+    "REPORT_GENERATING": "Running multimodal reasoning and optional ArXiv fact-checking.",
     "COMPLETED": "The review is ready to read.",
     "FAILED": "The pipeline stopped before the review could finish.",
+}
+STATUS_LABELS = {
+    "PENDING": "⏳ Waiting in the launch queue...",
+    "PARSING_DOC": "📚 Parsing PDF structure...",
+    "VECTORIZING": "🧩 Chunking & extracting images...",
+    "AGENT_PLANNING": "🧠 Planning the review strategy...",
+    "EVIDENCE_RETRIEVAL": "🔎 Retrieving evidence & visual context...",
+    "REPORT_GENERATING": "🕵️‍♂️ Agent fact-checking on ArXiv...",
+    "COMPLETED": "✨ Review Completed!",
+    "FAILED": "⚠️ Review interrupted",
 }
 
 
@@ -35,258 +45,338 @@ def inject_styles() -> None:
     st.markdown(
         """
         <style>
+        @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Source+Serif+4:wght@600;700&display=swap');
+
+        :root {
+            --ink: #15233b;
+            --muted: #61708f;
+            --line: rgba(87, 105, 160, 0.16);
+            --card: rgba(255, 255, 255, 0.82);
+            --card-strong: rgba(255, 255, 255, 0.96);
+            --lavender: #8f7cff;
+            --blue: #65b5ff;
+            --mint: #6fe1c5;
+            --peach: #ffb38e;
+        }
+
         .stApp {
             background:
-                radial-gradient(circle at top left, rgba(212, 143, 84, 0.18), transparent 28%),
-                radial-gradient(circle at bottom right, rgba(42, 110, 92, 0.14), transparent 30%),
-                linear-gradient(135deg, #f7f1e8 0%, #f1eee7 42%, #eef4f1 100%);
-            color: #14222b;
+                radial-gradient(circle at top left, rgba(143, 124, 255, 0.19), transparent 26%),
+                radial-gradient(circle at top right, rgba(101, 181, 255, 0.16), transparent 24%),
+                radial-gradient(circle at bottom left, rgba(111, 225, 197, 0.16), transparent 24%),
+                linear-gradient(145deg, #f7f8ff 0%, #f6fbff 38%, #f9fcfb 100%);
+            color: var(--ink);
         }
 
         html, body, [class*="css"] {
-            font-family: "Avenir Next", "Segoe UI", sans-serif;
+            font-family: "Manrope", "Segoe UI", sans-serif;
         }
 
         h1, h2, h3, h4 {
-            font-family: Georgia, "Times New Roman", serif;
+            font-family: "Source Serif 4", Georgia, serif;
             letter-spacing: -0.02em;
+            color: var(--ink);
         }
 
         [data-testid="block-container"] {
-            padding-top: 2.4rem;
-            padding-bottom: 2.8rem;
-            max-width: 1280px;
+            max-width: 1320px;
+            padding-top: 2.3rem;
+            padding-bottom: 3rem;
+        }
+
+        [data-testid="stSidebar"] > div:first-child {
+            background:
+                linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(246, 248, 255, 0.92)),
+                linear-gradient(180deg, rgba(143, 124, 255, 0.06), rgba(101, 181, 255, 0.05));
+            border-right: 1px solid var(--line);
+        }
+
+        [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {
+            color: var(--muted);
+            line-height: 1.65;
         }
 
         .hero-shell {
-            background: linear-gradient(140deg, rgba(20, 34, 43, 0.95), rgba(43, 72, 69, 0.9));
-            border: 1px solid rgba(255, 255, 255, 0.18);
+            position: relative;
+            overflow: hidden;
+            padding: 1.8rem 1.85rem 1.55rem;
             border-radius: 28px;
-            color: #f6efe5;
-            padding: 1.8rem 1.9rem 1.6rem;
-            box-shadow: 0 28px 90px rgba(15, 28, 35, 0.15);
-            margin-bottom: 1.4rem;
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            background:
+                radial-gradient(circle at top right, rgba(255, 255, 255, 0.18), transparent 28%),
+                linear-gradient(135deg, rgba(26, 39, 88, 0.96), rgba(77, 65, 157, 0.94) 48%, rgba(66, 145, 177, 0.92));
+            box-shadow: 0 24px 80px rgba(52, 61, 130, 0.18);
+            margin-bottom: 1.25rem;
+            color: white;
         }
 
-        .hero-eyebrow {
+        .hero-shell:after {
+            content: "";
+            position: absolute;
+            width: 240px;
+            height: 240px;
+            right: -60px;
+            top: -80px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.11);
+            filter: blur(4px);
+        }
+
+        .hero-kicker {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            padding: 0.4rem 0.8rem;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            font-size: 0.78rem;
+            letter-spacing: 0.08em;
             text-transform: uppercase;
-            letter-spacing: 0.18em;
-            font-size: 0.72rem;
-            opacity: 0.72;
-            margin-bottom: 0.9rem;
+            font-weight: 700;
         }
 
-        .hero-title {
-            font-size: 3rem;
-            line-height: 1.02;
-            margin: 0;
-        }
-
-        .hero-subtitle {
+        .hero-copy {
             max-width: 820px;
-            margin-top: 0.95rem;
-            font-size: 1.03rem;
-            line-height: 1.72;
-            color: rgba(246, 239, 229, 0.82);
+            margin-top: 0.85rem;
+            font-size: 1.02rem;
+            line-height: 1.75;
+            color: rgba(255, 255, 255, 0.88);
         }
 
-        .panel-shell {
-            background: rgba(255, 255, 255, 0.72);
-            border: 1px solid rgba(20, 34, 43, 0.08);
-            border-radius: 24px;
-            padding: 1.2rem 1.25rem 1.05rem;
-            box-shadow: 0 20px 70px rgba(31, 49, 63, 0.09);
-            backdrop-filter: blur(10px);
+        .glass-card {
+            background: var(--card);
+            border: 1px solid rgba(255, 255, 255, 0.82);
+            border-radius: 22px;
+            box-shadow: 0 16px 48px rgba(73, 94, 158, 0.09);
+            padding: 1.05rem 1.1rem;
+            backdrop-filter: blur(16px);
         }
 
-        .panel-title {
-            text-transform: uppercase;
-            letter-spacing: 0.12em;
-            font-size: 0.76rem;
-            color: #6a5d52;
-            margin-bottom: 0.35rem;
-        }
-
-        .panel-heading {
-            font-size: 1.55rem;
-            color: #14222b;
-            margin-bottom: 0.3rem;
-        }
-
-        .panel-copy {
-            color: #55616a;
-            line-height: 1.64;
+        .overview-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 0.85rem;
             margin-bottom: 1rem;
         }
 
-        .meta-grid {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 0.8rem;
-            margin: 0.85rem 0 0.35rem;
-        }
-
-        .meta-card {
-            padding: 0.82rem 0.92rem;
-            background: rgba(247, 241, 232, 0.68);
-            border: 1px solid rgba(20, 34, 43, 0.08);
+        .overview-card {
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(245, 248, 255, 0.92));
+            border: 1px solid var(--line);
             border-radius: 18px;
+            padding: 0.95rem 1rem;
+            box-shadow: 0 12px 34px rgba(73, 94, 158, 0.08);
         }
 
-        .meta-label {
-            font-size: 0.72rem;
+        .overview-label {
+            font-size: 0.73rem;
             text-transform: uppercase;
-            letter-spacing: 0.1em;
-            color: #7f7268;
-            margin-bottom: 0.35rem;
+            letter-spacing: 0.11em;
+            color: var(--muted);
+            margin-bottom: 0.45rem;
         }
 
-        .meta-value {
-            color: #14222b;
+        .overview-value {
             font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--ink);
             word-break: break-word;
-        }
-
-        .status-grid {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 0.75rem;
-            margin-top: 1rem;
-        }
-
-        .stage-card {
-            border-radius: 18px;
-            padding: 0.9rem;
-            border: 1px solid rgba(20, 34, 43, 0.08);
-            background: rgba(255, 255, 255, 0.8);
-            min-height: 120px;
-        }
-
-        .stage-card.done {
-            background: rgba(236, 247, 241, 0.96);
-            border-color: rgba(42, 110, 92, 0.22);
-        }
-
-        .stage-card.active {
-            background: linear-gradient(160deg, rgba(20, 34, 43, 0.96), rgba(57, 89, 84, 0.92));
-            border-color: rgba(255, 255, 255, 0.12);
-            color: #f6efe5;
-            transform: translateY(-1px);
-        }
-
-        .stage-card.pending {
-            opacity: 0.76;
-        }
-
-        .stage-index {
-            display: inline-flex;
-            width: 1.85rem;
-            height: 1.85rem;
-            align-items: center;
-            justify-content: center;
-            border-radius: 999px;
-            background: rgba(20, 34, 43, 0.08);
-            font-size: 0.82rem;
-            font-weight: 700;
-            margin-bottom: 0.75rem;
-        }
-
-        .stage-card.active .stage-index {
-            background: rgba(246, 239, 229, 0.14);
-        }
-
-        .stage-name {
-            font-size: 0.96rem;
-            font-weight: 700;
-            margin-bottom: 0.35rem;
-        }
-
-        .stage-text {
-            font-size: 0.88rem;
-            line-height: 1.55;
-        }
-
-        .summary-card, .result-card, .empty-card {
-            border-radius: 22px;
-            border: 1px solid rgba(20, 34, 43, 0.08);
-            background: rgba(255, 255, 255, 0.78);
-            padding: 1.1rem 1.15rem;
-            box-shadow: 0 16px 60px rgba(31, 49, 63, 0.06);
-        }
-
-        .summary-card {
-            background: linear-gradient(140deg, rgba(255, 255, 255, 0.82), rgba(247, 241, 232, 0.95));
-            margin-top: 0.3rem;
-        }
-
-        .section-kicker {
-            text-transform: uppercase;
-            letter-spacing: 0.13em;
-            font-size: 0.74rem;
-            color: #8b6c48;
-            margin-bottom: 0.6rem;
-        }
-
-        .summary-copy {
-            font-size: 1rem;
-            line-height: 1.82;
-            color: #1a2a34;
-            margin: 0;
-        }
-
-        .result-list {
-            margin: 0;
-            padding-left: 1.05rem;
-            color: #22323d;
-            line-height: 1.7;
-        }
-
-        .result-list li {
-            margin-bottom: 0.42rem;
-        }
-
-        .muted-copy {
-            color: #66737d;
-            line-height: 1.65;
-            margin: 0;
-        }
-
-        [data-testid="stFileUploader"] {
-            border-radius: 18px;
-            border: 1px dashed rgba(20, 34, 43, 0.24);
-            background: rgba(248, 245, 239, 0.88);
-            padding: 0.35rem 0.5rem;
-        }
-
-        [data-testid="stTextInputRootElement"] > div > div {
-            border-radius: 14px;
-        }
-
-        div[data-testid="stButton"] > button {
-            border-radius: 999px;
-            min-height: 3.1rem;
-            font-weight: 700;
-            letter-spacing: 0.02em;
-            border: none;
-            background: linear-gradient(135deg, #c86f42, #b85748);
-            color: white;
-            box-shadow: 0 18px 30px rgba(184, 87, 72, 0.2);
-        }
-
-        div[data-testid="stButton"] > button:hover {
-            background: linear-gradient(135deg, #b65f37, #a94e40);
         }
 
         .focus-pill {
             display: inline-flex;
             align-items: center;
-            padding: 0.35rem 0.7rem;
+            padding: 0.42rem 0.78rem;
             border-radius: 999px;
-            background: rgba(20, 34, 43, 0.06);
-            border: 1px solid rgba(20, 34, 43, 0.08);
-            margin: 0.12rem 0.4rem 0.12rem 0;
+            background: rgba(143, 124, 255, 0.09);
+            border: 1px solid rgba(143, 124, 255, 0.16);
+            color: #43357c;
+            margin: 0.12rem 0.45rem 0.12rem 0;
             font-size: 0.86rem;
-            color: #22323d;
+            font-weight: 600;
+        }
+
+        .stage-strip {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 0.75rem;
+            margin-top: 0.5rem;
+        }
+
+        .stage-pill {
+            border-radius: 18px;
+            padding: 0.8rem 0.86rem;
+            border: 1px solid var(--line);
+            background: rgba(255, 255, 255, 0.72);
+            min-height: 92px;
+        }
+
+        .stage-pill.active {
+            background: linear-gradient(145deg, rgba(143, 124, 255, 0.92), rgba(101, 181, 255, 0.92));
+            color: white;
+            transform: translateY(-1px);
+            box-shadow: 0 14px 28px rgba(111, 120, 224, 0.18);
+        }
+
+        .stage-pill.done {
+            background: rgba(111, 225, 197, 0.12);
+            border-color: rgba(111, 225, 197, 0.35);
+        }
+
+        .stage-pill.pending {
+            opacity: 0.76;
+        }
+
+        .stage-title {
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin-bottom: 0.35rem;
+        }
+
+        .stage-note {
+            font-size: 0.82rem;
+            line-height: 1.5;
+        }
+
+        .result-hero {
+            padding: 1.15rem 1.2rem;
+            border-radius: 24px;
+            background:
+                radial-gradient(circle at top left, rgba(143, 124, 255, 0.16), transparent 30%),
+                linear-gradient(155deg, rgba(255, 255, 255, 0.95), rgba(245, 248, 255, 0.96));
+            border: 1px solid var(--line);
+            box-shadow: 0 16px 48px rgba(73, 94, 158, 0.09);
+            margin-bottom: 1rem;
+        }
+
+        .summary-copy {
+            margin: 0;
+            font-size: 1rem;
+            line-height: 1.82;
+            color: #223150;
+        }
+
+        .reference-card {
+            padding: 1rem 1.05rem;
+            border-radius: 18px;
+            background: linear-gradient(160deg, rgba(255, 255, 255, 0.98), rgba(246, 248, 255, 0.92));
+            border: 1px solid rgba(143, 124, 255, 0.14);
+            box-shadow: 0 14px 36px rgba(73, 94, 158, 0.08);
+            margin-bottom: 0.9rem;
+        }
+
+        .reference-title {
+            font-size: 1rem;
+            font-weight: 800;
+            color: var(--ink);
+            margin-bottom: 0.35rem;
+        }
+
+        .reference-meta {
+            font-size: 0.84rem;
+            color: var(--muted);
+            line-height: 1.55;
+            margin-bottom: 0.2rem;
+        }
+
+        .reference-card blockquote {
+            margin: 0.85rem 0 0;
+            padding: 0.85rem 1rem;
+            border-left: 4px solid rgba(143, 124, 255, 0.48);
+            background: rgba(143, 124, 255, 0.06);
+            border-radius: 0 12px 12px 0;
+            color: #33415f;
+        }
+
+        .empty-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 0.9rem;
+            margin-top: 1rem;
+        }
+
+        .empty-card {
+            padding: 1rem;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.88);
+            border: 1px solid var(--line);
+            box-shadow: 0 14px 36px rgba(73, 94, 158, 0.08);
+        }
+
+        .empty-card h4 {
+            margin: 0 0 0.4rem;
+            font-size: 1.03rem;
+        }
+
+        .empty-card p {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.66;
+        }
+
+        [data-testid="stFileUploader"] section,
+        [data-testid="stTextInputRootElement"] > div,
+        [data-testid="stStatusWidget"] {
+            border-radius: 18px;
+            box-shadow: 0 10px 30px rgba(73, 94, 158, 0.08);
+        }
+
+        [data-testid="stFileUploader"] section {
+            border: 1px dashed rgba(143, 124, 255, 0.32);
+            background: rgba(255, 255, 255, 0.76);
+        }
+
+        [data-testid="stTextInputRootElement"] input {
+            border-radius: 14px;
+        }
+
+        div[data-testid="stButton"] > button,
+        div[data-testid="stFormSubmitButton"] > button {
+            border-radius: 12px;
+            min-height: 3.05rem;
+            font-weight: 800;
+            border: none;
+            color: white;
+            background: linear-gradient(135deg, #7d77ff 0%, #52b1ff 100%);
+            box-shadow: 0 16px 32px rgba(101, 117, 255, 0.24);
+            transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
+        }
+
+        div[data-testid="stButton"] > button:hover,
+        div[data-testid="stFormSubmitButton"] > button:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.02);
+            box-shadow: 0 18px 34px rgba(101, 117, 255, 0.28);
+        }
+
+        div[data-baseweb="tab-list"] {
+            gap: 0.45rem;
+        }
+
+        button[data-baseweb="tab"] {
+            height: 46px;
+            padding: 0 1rem;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(143, 124, 255, 0.12);
+        }
+
+        button[data-baseweb="tab"][aria-selected="true"] {
+            background: linear-gradient(135deg, rgba(143, 124, 255, 0.16), rgba(101, 181, 255, 0.16));
+            color: #30215c;
+            border-color: rgba(143, 124, 255, 0.26);
+        }
+
+        div[data-baseweb="tab-highlight"] {
+            display: none;
+        }
+
+        @media (max-width: 960px) {
+            .overview-grid,
+            .empty-grid,
+            .stage-strip {
+                grid-template-columns: 1fr;
+            }
         }
         </style>
         """,
@@ -304,6 +394,7 @@ def init_session_state() -> None:
         "retry_count": None,
         "status_history": [],
         "focus_areas": [],
+        "celebrated_task_id": None,
     }
     for key, value in defaults.items():
         st.session_state.setdefault(key, value)
@@ -390,9 +481,9 @@ def render_focus_pills(focus_areas: list[str]) -> None:
     st.markdown(pill_markup, unsafe_allow_html=True)
 
 
-def render_stage_grid(current_status: str, history: list[str]) -> str:
+def render_stage_timeline(current_status: str, history: list[str]) -> str:
     cards: list[str] = []
-    for index, stage in enumerate(STATUS_FLOW[:-1], start=1):
+    for stage in STATUS_FLOW[:-1]:
         if stage == current_status:
             variant = "active"
         elif stage in history:
@@ -402,30 +493,99 @@ def render_stage_grid(current_status: str, history: list[str]) -> str:
 
         cards.append(
             f"""
-            <div class="stage-card {variant}">
-                <div class="stage-index">{index}</div>
-                <div class="stage-name">{html.escape(friendly_status(stage))}</div>
-                <div class="stage-text">{html.escape(STATUS_COPY[stage])}</div>
+            <div class="stage-pill {variant}">
+                <div class="stage-title">{html.escape(friendly_status(stage))}</div>
+                <div class="stage-note">{html.escape(STATUS_COPY[stage])}</div>
             </div>
             """
         )
 
-    return f"<div class='status-grid'>{''.join(cards)}</div>"
+    return f"<div class='stage-strip'>{''.join(cards)}</div>"
 
 
-def render_result_card(title: str, items: list[str]) -> None:
-    if items:
-        body = "<ul class='result-list'>" + "".join(
-            f"<li>{format_text(item)}</li>" for item in items
-        ) + "</ul>"
-    else:
-        body = "<p class='muted-copy'>No notes were generated for this section.</p>"
+def render_header() -> None:
+    st.markdown(
+        """
+        <div class="hero-shell">
+            <div class="hero-kicker">Multimodal Vision RAG • Agentic Fact-Checking</div>
+            <h1 style="margin:0.85rem 0 0;">🦄 Autonomous Paper Reviewer</h1>
+            <p class="hero-copy">
+                Upload a research paper and let the pipeline parse text, inspect figures, retrieve evidence,
+                fact-check against ArXiv, and produce a polished reviewer-style report.
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_overview_cards() -> None:
+    document_id = st.session_state.document_id or "No document yet"
+    task_id = st.session_state.task_id or "No task yet"
+    focus_count = len(st.session_state.focus_areas or [])
+    current_state = friendly_status(st.session_state.review_status)
 
     st.markdown(
         f"""
-        <div class="result-card">
-            <div class="section-kicker">{html.escape(title)}</div>
-            {body}
+        <div class="overview-grid">
+            <div class="overview-card">
+                <div class="overview-label">Document</div>
+                <div class="overview-value">{html.escape(str(document_id))}</div>
+            </div>
+            <div class="overview-card">
+                <div class="overview-label">Task</div>
+                <div class="overview-value">{html.escape(str(task_id))}</div>
+            </div>
+            <div class="overview-card">
+                <div class="overview-label">Focus Areas</div>
+                <div class="overview-value">{focus_count}</div>
+            </div>
+            <div class="overview-card">
+                <div class="overview-label">Pipeline State</div>
+                <div class="overview-value">{html.escape(current_state)}</div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_idle_state() -> None:
+    st.markdown(
+        """
+        <div class="glass-card">
+            <h3 style="margin-top:0;">Review cockpit is standing by</h3>
+            <p style="margin-bottom:0; color:var(--muted); line-height:1.72;">
+                Launch a review from the sidebar to watch the full multimodal pipeline in real time.
+            </p>
+        </div>
+        <div class="empty-grid">
+            <div class="empty-card">
+                <h4>📄 Upload once</h4>
+                <p>Drop in a PDF from the sidebar and kick off a fully asynchronous backend workflow.</p>
+            </div>
+            <div class="empty-card">
+                <h4>🧠 Review with context</h4>
+                <p>The system blends parsed paper text, linked figures, tables, and retrieved evidence.</p>
+            </div>
+            <div class="empty-card">
+                <h4>🌐 Fact-check externally</h4>
+                <p>The reviewer can query ArXiv before writing the final structured report.</p>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_result_hero(result: dict[str, Any]) -> None:
+    st.markdown(
+        f"""
+        <div class="result-hero">
+            <div style="font-size:0.76rem; letter-spacing:0.12em; text-transform:uppercase; color:#6c74a4; margin-bottom:0.55rem;">
+                Final Verdict Snapshot
+            </div>
+            <p class="summary-copy">{format_text(result.get("summary") or "No summary returned.")}</p>
         </div>
         """,
         unsafe_allow_html=True,
@@ -434,229 +594,115 @@ def render_result_card(title: str, items: list[str]) -> None:
 
 def render_results(payload: dict[str, Any]) -> None:
     result = payload.get("result_json") or {}
+    if st.session_state.task_id and st.session_state.celebrated_task_id != st.session_state.task_id:
+        st.balloons()
+        st.session_state.celebrated_task_id = st.session_state.task_id
 
-    st.success("Review completed successfully.")
-    st.markdown(
-        f"""
-        <div class="summary-card">
-            <div class="section-kicker">Summary</div>
-            <p class="summary-copy">{format_text(result.get("summary") or "No summary returned.")}</p>
-        </div>
-        """,
-        unsafe_allow_html=True,
+    render_result_hero(result)
+
+    summary_tab, strengths_tab, weaknesses_tab, questions_tab, arxiv_tab = st.tabs(
+        ["📝 Summary", "💡 Strengths", "🎯 Weaknesses", "❓ Questions", "🌐 ArXiv Fact-Check"]
     )
 
-    upper_left, upper_right = st.columns(2, gap="large")
-    with upper_left:
-        render_result_card("Strengths", list(result.get("strengths") or []))
-    with upper_right:
-        render_result_card("Weaknesses", list(result.get("weaknesses") or []))
+    with summary_tab:
+        st.info(result.get("summary") or "No summary returned.")
+        if st.session_state.focus_areas:
+            st.markdown("#### Focus Areas")
+            render_focus_pills(st.session_state.focus_areas)
+        st.caption("The report below is generated from document evidence, linked visuals, and optional external references.")
 
-    lower_left, lower_right = st.columns(2, gap="large")
-    with lower_left:
-        render_result_card("Missing Evidence", list(result.get("missing_evidence") or []))
-    with lower_right:
-        render_result_card("Questions For Authors", list(result.get("questions_for_authors") or []))
-
-
-def render_idle_state() -> None:
-    st.markdown(
-        """
-        <div class="empty-card">
-            <div class="section-kicker">Results Console</div>
-            <h3 style="margin-top:0; margin-bottom:0.45rem;">Your review output will appear here</h3>
-            <p class="muted-copy">
-                Upload a PDF, choose a few focus areas, and start the review. The right side will track
-                each workflow stage live, then unfold the final report once the worker finishes.
-            </p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-def poll_review(task_id: str) -> None:
-    status_placeholder = st.empty()
-    progress_placeholder = st.empty()
-    meta_placeholder = st.empty()
-    stages_placeholder = st.empty()
-    result_placeholder = st.empty()
-
-    while True:
-        try:
-            response = requests.get(
-                f"{API_BASE_URL}/api/v1/reviews/{task_id}",
-                timeout=30,
-            )
-        except requests.RequestException as exc:
-            st.session_state.error_message = f"Polling failed: {exc}"
-            st.session_state.review_status = "FAILED"
-            break
-
-        if not response.ok:
-            st.session_state.error_message = extract_error_message(response)
-            st.session_state.review_status = "FAILED"
-            break
-
-        payload = response.json()
-        current_status = str(payload.get("status"))
-        st.session_state.review_status = current_status
-        st.session_state.review_result = payload.get("result_json")
-        st.session_state.error_message = payload.get("error_message")
-        st.session_state.retry_count = payload.get("retry_count")
-
-        if not st.session_state.status_history or st.session_state.status_history[-1] != current_status:
-            st.session_state.status_history.append(current_status)
-
-        message = STATUS_COPY.get(current_status, "Working through the review pipeline.")
-        if current_status == "FAILED":
-            status_placeholder.error(f"{friendly_status(current_status)}: {message}")
-        elif current_status == "COMPLETED":
-            status_placeholder.success(f"{friendly_status(current_status)}: {message}")
+    with strengths_tab:
+        strengths = list(result.get("strengths") or [])
+        if strengths:
+            for item in strengths:
+                st.success(item)
         else:
-            status_placeholder.info(f"{friendly_status(current_status)}: {message}")
+            st.info("No strengths were captured for this review.")
 
-        progress_placeholder.progress(
-            progress_for_status(current_status, st.session_state.status_history),
-            text=f"Pipeline state: {friendly_status(current_status)}",
+    with weaknesses_tab:
+        weaknesses = list(result.get("weaknesses") or [])
+        if weaknesses:
+            for item in weaknesses:
+                st.warning(item)
+        else:
+            st.success("No explicit weaknesses were recorded.")
+
+    with questions_tab:
+        questions = list(result.get("questions_for_authors") or [])
+        missing_evidence = list(result.get("missing_evidence") or [])
+
+        st.markdown("#### Questions for the authors")
+        if questions:
+            for item in questions:
+                st.info(item)
+        else:
+            st.success("No follow-up questions were needed for this run.")
+
+        st.markdown("#### Missing evidence or unclear claims")
+        if missing_evidence:
+            for item in missing_evidence:
+                st.warning(item)
+        else:
+            st.success("The reviewer did not flag additional evidence gaps.")
+
+    with arxiv_tab:
+        references = list(result.get("external_references_checked") or [])
+        if not references:
+            st.info("No external ArXiv references were pulled for this review.")
+        else:
+            for reference in references:
+                title = format_text(reference.get("title") or "Untitled reference")
+                authors = ", ".join(reference.get("authors") or []) or "Authors unavailable"
+                published_date = reference.get("published_date") or "Publication date unavailable"
+                summary = format_text(reference.get("summary") or "No summary available.")
+                st.markdown(
+                    f"""
+                    <div class="reference-card">
+                        <div class="reference-title">{title}</div>
+                        <div class="reference-meta"><strong>Authors</strong>: {format_text(authors)}</div>
+                        <div class="reference-meta"><strong>Published</strong>: {format_text(published_date)}</div>
+                        <blockquote>{summary}</blockquote>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+
+
+def render_sidebar() -> None:
+    with st.sidebar:
+        st.markdown("## Launch a Review")
+        st.markdown(
+            "Upload your PDF and let our Multi-Agent Vision RAG pipeline do the heavy lifting."
         )
-
-        meta_placeholder.markdown(
-            f"""
-            <div class="meta-grid">
-                <div class="meta-card">
-                    <div class="meta-label">Task ID</div>
-                    <div class="meta-value">{html.escape(task_id)}</div>
-                </div>
-                <div class="meta-card">
-                    <div class="meta-label">Retry Count</div>
-                    <div class="meta-value">{st.session_state.retry_count or 0}</div>
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-        stages_placeholder.markdown(
-            render_stage_grid(current_status, st.session_state.status_history),
-            unsafe_allow_html=True,
-        )
-
-        if current_status == "COMPLETED":
-            with result_placeholder.container():
-                render_results(payload)
-            break
-
-        if current_status == "FAILED":
-            with result_placeholder.container():
-                st.error(st.session_state.error_message or "The review pipeline failed.")
-            break
-
-        time.sleep(POLL_INTERVAL_SECONDS)
-
-
-def render_existing_state() -> None:
-    if not st.session_state.task_id:
-        render_idle_state()
-        return
-
-    if st.session_state.review_status not in TERMINAL_STATUSES:
-        poll_review(st.session_state.task_id)
-        return
-
-    st.info(
-        f"{friendly_status(st.session_state.review_status)}: "
-        f"{STATUS_COPY.get(st.session_state.review_status or '', 'No status copy available.')}"
-    )
-    st.progress(
-        progress_for_status(
-            st.session_state.review_status or "FAILED",
-            st.session_state.status_history,
-        ),
-        text=f"Pipeline state: {friendly_status(st.session_state.review_status)}",
-    )
-
-    st.markdown(
-        f"""
-        <div class="meta-grid">
-            <div class="meta-card">
-                <div class="meta-label">Task ID</div>
-                <div class="meta-value">{html.escape(str(st.session_state.task_id))}</div>
-            </div>
-            <div class="meta-card">
-                <div class="meta-label">Retry Count</div>
-                <div class="meta-value">{st.session_state.retry_count or 0}</div>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    st.markdown(
-        render_stage_grid(
-            st.session_state.review_status or "FAILED",
-            st.session_state.status_history,
-        ),
-        unsafe_allow_html=True,
-    )
-
-    if st.session_state.review_status == "COMPLETED":
-        render_results({"result_json": st.session_state.review_result or {}})
-    else:
-        st.error(st.session_state.error_message or "The review pipeline failed.")
-
-
-def main() -> None:
-    st.set_page_config(
-        page_title="AI Paper Analyzer",
-        layout="wide",
-        initial_sidebar_state="collapsed",
-    )
-    inject_styles()
-    init_session_state()
-
-    st.markdown(
-        """
-        <div class="hero-shell">
-            <div class="hero-eyebrow">Academic Intelligence Workspace</div>
-            <h1 class="hero-title">AI Paper Analyzer</h1>
-            <div class="hero-subtitle">
-                Drop in a research paper, steer the review with a few focus areas, and watch the backend
-                move from parsing to evidence retrieval to the final peer-review style report.
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    left_col, right_col = st.columns([0.92, 1.28], gap="large")
-
-    with left_col:
         st.markdown(
             """
-            <div class="panel-shell">
-                <div class="panel-title">Inputs</div>
-                <div class="panel-heading">Launch a new analysis</div>
-                <div class="panel-copy">
-                Upload a PDF and optionally guide the review with focus areas such as methodology,
-                novelty, baselines, limitations, or statistical rigor.
+            <div class="glass-card" style="padding:0.95rem 1rem; margin-bottom:0.9rem;">
+                <div style="font-size:0.76rem; letter-spacing:0.1em; text-transform:uppercase; color:#6c74a4; margin-bottom:0.45rem;">
+                    What happens next
                 </div>
+                <p style="margin:0; line-height:1.65; color:#5f6f8e;">
+                    We parse the PDF, extract images and tables, retrieve evidence, optionally check ArXiv,
+                    and generate a structured reviewer-style report.
+                </p>
             </div>
             """,
             unsafe_allow_html=True,
         )
 
-        uploaded_file = st.file_uploader(
-            "Paper PDF",
-            type=["pdf"],
-            help="Upload the research paper you want the review pipeline to analyze.",
-        )
-        focus_input = st.text_input(
-            "Focus Areas",
-            placeholder="methodology, novelty, baselines, limitations",
-            help="Comma-separated topics to emphasize during the review.",
-        )
+        with st.form("launch-review-form"):
+            uploaded_file = st.file_uploader(
+                "Paper PDF",
+                type=["pdf"],
+                help="Upload the research paper you want the review pipeline to analyze.",
+            )
+            focus_input = st.text_input(
+                "Focus Areas",
+                placeholder="novelty, baselines, limitations, methodology",
+                help="Comma-separated topics to emphasize during the review.",
+            )
+            submitted = st.form_submit_button("Start Review", use_container_width=True)
 
-        if st.button("Start Review", use_container_width=True):
+        if submitted:
             if uploaded_file is None:
                 st.warning("Please upload a PDF before starting the review.")
             else:
@@ -678,44 +724,207 @@ def main() -> None:
                     st.session_state.retry_count = 0
                     st.session_state.status_history = [initial_status]
                     st.session_state.focus_areas = focus_areas
-                    st.success("Review task submitted. The live pipeline is now tracking on the right.")
+                    st.session_state.celebrated_task_id = None
+                    st.success("Review task submitted. Head to the main panel to watch it work.")
 
-        if st.session_state.document_id or st.session_state.task_id:
-            st.markdown(
+        st.divider()
+        st.markdown("### Current focus")
+        render_focus_pills(st.session_state.focus_areas)
+        st.caption(
+            "Tip: great prompts include novelty, experimental design, ablations, statistical rigor, or limitations."
+        )
+
+
+def poll_review(task_id: str) -> None:
+    result_placeholder = st.empty()
+
+    with st.status("🚀 Processing Document...", expanded=True) as status:
+        meta_placeholder = st.empty()
+        progress_placeholder = st.empty()
+        stage_placeholder = st.empty()
+        copy_placeholder = st.empty()
+
+        while True:
+            try:
+                response = requests.get(
+                    f"{API_BASE_URL}/api/v1/reviews/{task_id}",
+                    timeout=30,
+                )
+            except requests.RequestException as exc:
+                st.session_state.error_message = f"Polling failed: {exc}"
+                st.session_state.review_status = "FAILED"
+                status.update(label="⚠️ Polling failed", state="error", expanded=True)
+                with result_placeholder.container():
+                    st.error(st.session_state.error_message)
+                break
+
+            if not response.ok:
+                st.session_state.error_message = extract_error_message(response)
+                st.session_state.review_status = "FAILED"
+                status.update(label="⚠️ Review interrupted", state="error", expanded=True)
+                with result_placeholder.container():
+                    st.error(st.session_state.error_message)
+                break
+
+            payload = response.json()
+            current_status = str(payload.get("status"))
+            st.session_state.review_status = current_status
+            st.session_state.review_result = payload.get("result_json")
+            st.session_state.error_message = payload.get("error_message")
+            st.session_state.retry_count = payload.get("retry_count")
+
+            if not st.session_state.status_history or st.session_state.status_history[-1] != current_status:
+                st.session_state.status_history.append(current_status)
+
+            state = "running"
+            expanded = True
+            if current_status == "COMPLETED":
+                state = "complete"
+                expanded = False
+            elif current_status == "FAILED":
+                state = "error"
+
+            status.update(
+                label=STATUS_LABELS.get(current_status, "🚀 Processing Document..."),
+                state=state,
+                expanded=expanded,
+            )
+
+            copy_placeholder.markdown(
                 f"""
-                <div class="meta-grid">
-                    <div class="meta-card">
-                        <div class="meta-label">Document ID</div>
-                        <div class="meta-value">{html.escape(str(st.session_state.document_id or "Pending"))}</div>
+                <div class="glass-card" style="padding:0.95rem 1rem; margin-top:0.25rem;">
+                    <div style="font-size:0.76rem; text-transform:uppercase; letter-spacing:0.1em; color:#6c74a4; margin-bottom:0.35rem;">
+                        Live Pipeline Note
                     </div>
-                    <div class="meta-card">
-                        <div class="meta-label">Task ID</div>
-                        <div class="meta-value">{html.escape(str(st.session_state.task_id or "Pending"))}</div>
+                    <div style="color:#31405d; line-height:1.68;">
+                        {html.escape(STATUS_COPY.get(current_status, "Working through the review pipeline."))}
                     </div>
                 </div>
                 """,
                 unsafe_allow_html=True,
             )
+            meta_placeholder.markdown(
+                f"""
+                <div class="overview-grid" style="margin:0.35rem 0 0.6rem;">
+                    <div class="overview-card">
+                        <div class="overview-label">Task ID</div>
+                        <div class="overview-value">{html.escape(task_id)}</div>
+                    </div>
+                    <div class="overview-card">
+                        <div class="overview-label">Document ID</div>
+                        <div class="overview-value">{html.escape(str(st.session_state.document_id or "Pending"))}</div>
+                    </div>
+                    <div class="overview-card">
+                        <div class="overview-label">Retry Count</div>
+                        <div class="overview-value">{st.session_state.retry_count or 0}</div>
+                    </div>
+                    <div class="overview-card">
+                        <div class="overview-label">State</div>
+                        <div class="overview-value">{html.escape(friendly_status(current_status))}</div>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            progress_placeholder.progress(
+                progress_for_status(current_status, st.session_state.status_history),
+                text=f"Pipeline state: {friendly_status(current_status)}",
+            )
+            stage_placeholder.markdown(
+                render_stage_timeline(current_status, st.session_state.status_history),
+                unsafe_allow_html=True,
+            )
 
-        st.markdown("<div style='margin-top: 0.9rem;'></div>", unsafe_allow_html=True)
-        st.caption("Selected focus areas")
-        render_focus_pills(st.session_state.focus_areas)
+            if current_status == "COMPLETED":
+                status.update(label="✨ Review Completed!", state="complete", expanded=False)
+                with result_placeholder.container():
+                    render_results(payload)
+                break
 
-    with right_col:
+            if current_status == "FAILED":
+                status.update(label="⚠️ Review interrupted", state="error", expanded=True)
+                with result_placeholder.container():
+                    st.error(st.session_state.error_message or "The review pipeline failed.")
+                break
+
+            time.sleep(POLL_INTERVAL_SECONDS)
+
+
+def render_terminal_state() -> None:
+    current_status = st.session_state.review_status or "FAILED"
+    expanded = current_status != "COMPLETED"
+    state = "complete" if current_status == "COMPLETED" else "error"
+
+    with st.status(STATUS_LABELS.get(current_status, friendly_status(current_status)), expanded=expanded) as status:
+        status.update(
+            label=STATUS_LABELS.get(current_status, friendly_status(current_status)),
+            state=state,
+            expanded=expanded,
+        )
         st.markdown(
-            """
-            <div class="panel-shell">
-                <div class="panel-title">Results</div>
-                <div class="panel-heading">Review pipeline and report</div>
-                <div class="panel-copy">
-                This panel polls the FastAPI backend every two seconds, surfaces the current state
-                machine stage, and unfolds the final structured review when the task completes.
+            f"""
+            <div class="overview-grid" style="margin:0.35rem 0 0.6rem;">
+                <div class="overview-card">
+                    <div class="overview-label">Task ID</div>
+                    <div class="overview-value">{html.escape(str(st.session_state.task_id or "Pending"))}</div>
+                </div>
+                <div class="overview-card">
+                    <div class="overview-label">Document ID</div>
+                    <div class="overview-value">{html.escape(str(st.session_state.document_id or "Pending"))}</div>
+                </div>
+                <div class="overview-card">
+                    <div class="overview-label">Retry Count</div>
+                    <div class="overview-value">{st.session_state.retry_count or 0}</div>
+                </div>
+                <div class="overview-card">
+                    <div class="overview-label">State</div>
+                    <div class="overview-value">{html.escape(friendly_status(current_status))}</div>
                 </div>
             </div>
             """,
             unsafe_allow_html=True,
         )
-        render_existing_state()
+        st.progress(
+            progress_for_status(current_status, st.session_state.status_history),
+            text=f"Pipeline state: {friendly_status(current_status)}",
+        )
+        st.markdown(
+            render_stage_timeline(current_status, st.session_state.status_history),
+            unsafe_allow_html=True,
+        )
+
+    if current_status == "COMPLETED":
+        render_results({"result_json": st.session_state.review_result or {}})
+    else:
+        st.error(st.session_state.error_message or "The review pipeline failed.")
+
+
+def render_existing_state() -> None:
+    if not st.session_state.task_id:
+        render_idle_state()
+        return
+
+    if st.session_state.review_status not in TERMINAL_STATUSES:
+        poll_review(st.session_state.task_id)
+        return
+
+    render_terminal_state()
+
+
+def main() -> None:
+    st.set_page_config(
+        page_title="Agentic Paper Reviewer",
+        page_icon="🦄",
+        layout="wide",
+    )
+    inject_styles()
+    init_session_state()
+    render_sidebar()
+
+    st.markdown("# 🦄 Autonomous Paper Reviewer")
+    render_header()
+    render_overview_cards()
+    render_existing_state()
 
 
 if __name__ == "__main__":
