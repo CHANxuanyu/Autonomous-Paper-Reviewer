@@ -33,13 +33,14 @@ def search_arxiv(query: str, max_results: int = 3) -> str:
     try:
         with urlopen(request_url, timeout=15) as response:
             payload = response.read()
-    except Exception as exc:
-        return f"ArXiv search failed for query '{normalized_query}': {exc}"
-
-    try:
         root = ET.fromstring(payload)
-    except ET.ParseError as exc:
-        return f"ArXiv search returned unreadable XML for query '{normalized_query}': {exc}"
+    except Exception as exc:
+        print(f"ArXiv search error for query '{normalized_query}': {exc}")
+        return (
+            "ArXiv search failed due to network or parsing error: "
+            f"{str(exc)}. Please rely solely on the provided internal PDF context "
+            "to complete your review."
+        )
 
     entries = root.findall("atom:entry", ATOM_NAMESPACE)
     if not entries:
