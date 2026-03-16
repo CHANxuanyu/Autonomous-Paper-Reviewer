@@ -104,11 +104,11 @@ def _window_token_ranges(
 def _distance_to_window(position: int, start: int, end: int) -> int:
     """Measure how far an anchor lies from a token window."""
 
-    if start <= position <= end:
+    if start <= position < end:
         return 0
     if position < start:
         return start - position
-    return position - end
+    return position - end + 1
 
 
 def _build_synthetic_visual_chunk(
@@ -159,9 +159,18 @@ def _link_visuals_to_page_chunks(
             continue
 
         anchor_order = visual_block.get("anchor_text_order")
-        anchor_position = 0
-        if anchor_order in order_to_span:
-            anchor_position = int(order_to_span[anchor_order]["end"])
+        anchor_span = order_to_span.get(anchor_order)
+        if anchor_span is None:
+            linked_chunks.append(
+                _build_synthetic_visual_chunk(
+                    page_number=page_number,
+                    fallback_section=fallback_section,
+                    visual_block=visual_block,
+                )
+            )
+            continue
+
+        anchor_position = int(anchor_span["end"])
 
         available_chunks = [chunk for chunk in linked_chunks if chunk.get("linked_image_path") is None]
         candidate_chunks = available_chunks or linked_chunks
