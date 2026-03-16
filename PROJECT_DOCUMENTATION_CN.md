@@ -684,7 +684,91 @@ streamlit run app.py
 
 ---
 
-## 6. 结语
+## 6. 核心排错与边界处理
+
+### 6.1 多模态图文锚定算法的边界修复
+
+这次修复集中发生在 [`rag/chunker.py`](/home/chan/projects/Academic_Paper_Analyzer/rag/chunker.py) 的 `_distance_to_window(...)` 与 `_link_visuals_to_page_chunks(...)`。
+
+#### 问题复盘
+
+在早期版本中，视觉锚定算法存在两个容易被忽略、但影响非常实质的边界问题：
+
+- **Token 距离存在 off-by-one 风险**
+  - 旧逻辑将 token window 近似按闭区间处理，容易把边界 token 误判为“仍在窗口内”或“距离为 0”
+- **缺失锚点时错误默认 `anchor_position = 0`**
+  - 当视觉图表找不到合法的 `anchor_text_order`，系统会危险地退化为页首位置
+  - 这会导致本应孤立处理的图表，被强行绑定到页面顶部 chunk，制造错误的图文耦合关系
+
+这个问题之所以关键，是因为多模态 RAG 的可信度不只取决于“能否提取图表”，更取决于**图表被绑定到哪个语义上下文**。一旦锚定错位，下游检索、推理与审稿判断都会受到污染。
+
+#### 解决方案
+
+修复方案分为两层：
+
+1. **严格修正 token window 语义**
+   - 将窗口统一定义为半开区间 `[start, end)`
+   - 当 `start <= position < end` 时距离为 `0`
+   - 当 `position >= end` 时距离修正为 `position - end + 1`
+
+2. **移除危险默认值，改为显式降级**
+   - 当 `anchor_order` 无法解析到合法 span 时，不再强行参与距离计算
+   - 系统直接把该视觉块视作 orphan visual
+   - 立即触发降级策略，为其生成独立的 **Synthetic Visual Chunk（合成视觉锚点）**
+
+#### 工程收益
+
+这次修复带来的改进并不只是“少一个 bug”，而是显著提升了多模态链路的语义可靠性：
+
+- 避免边界 token 误判导致的错误最近邻选择
+- 避免孤立图表被错误吸附到页面头部
+- 保证无上下文视觉资产以隔离形式进入索引，而不是污染正常文本 chunk
+- 让 Vision RAG 在“信息缺失”场景下仍然保持可解释、可审计的行为
+
+### 6.2 工具调用的优雅降级
+
+这次修复发生在 [`tools/arxiv_search.py`](/home/chan/projects/Academic_Paper_Analyzer/tools/arxiv_search.py)，目标是让外部工具故障不再上升为系统级故障。
+
+#### 问题复盘
+
+Reviewer Agent 在执行 ArXiv 外部检索时，依赖 `urllib` 发起网络请求，并使用 `xml.etree.ElementTree` 解析返回内容。  
+在这种模式下，如果外部服务出现以下异常：
+
+- 网络超时（timeout）
+- 连接失败
+- 返回非预期 HTML / 无效 XML
+- XML 解析错误
+
+底层异常可能直接击穿工具调用边界，并进一步传播到 Celery Worker 的执行链路中。其结果不是“该次工具调用失败”，而是**整个异步任务进程可能异常中断**。
+
+#### 解决方案
+
+当前实现将网络请求与 XML 解析整体包裹在 `try/except Exception` 中，并遵循一个非常明确的策略：
+
+- **不向上抛异常**
+- **记录错误信息**
+- **返回一段自然语言 fallback 文本**
+
+返回信息的语义类似于：
+
+> ArXiv search failed due to network or parsing error ... Please rely solely on the provided internal PDF context to complete your review.
+
+换句话说，工具失败不再表现为“系统崩溃”，而是被转化为一条可被大模型理解的上下文信号。
+
+#### 工程收益
+
+这种设计体现的是典型的 **Graceful Degradation（优雅降级）** 思维：
+
+- 第三方 API 波动不再击穿 Celery Worker
+- LLM 可以根据 fallback 文本切换为“仅依赖内部 PDF 证据”的保守模式
+- 工具从“硬依赖”变为“增强能力”
+- 系统整体可用性不再被外部服务单点故障绑定
+
+从架构角度看，这类处理非常值得强调，因为它说明该系统不是把 Agent 当成“会调工具的脚本”，而是把工具调用视作**带故障边界的工程组件**。
+
+---
+
+## 7. 结语
 
 这个项目最值得展示的，不是“把 GPT 接进来了”，而是把一个本来容易停留在 notebook / demo 层面的方向，推进成了一个具备以下特征的完整系统：
 
