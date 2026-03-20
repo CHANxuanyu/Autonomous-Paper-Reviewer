@@ -7,6 +7,7 @@ from typing import Any
 from uuid import UUID
 
 from celery import Task
+import openai
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -200,6 +201,29 @@ def run_review_task(self: Task, task_id: str) -> None:
             db.commit()
             db.refresh(review_task)
 
+        except openai.AuthenticationError as exc:
+            db.rollback()
+            review_task = db.scalar(select(ReviewTask).where(ReviewTask.id == UUID(task_id)))
+            if review_task is None:
+                raise
+
+            _mark_review_failed(db, review_task, error_message="Fatal Error: Invalid OpenAI API Key")
+            return
+        except openai.RateLimitError as exc:
+            if "insufficient_quota" not in str(exc):
+                raise
+
+            db.rollback()
+            review_task = db.scalar(select(ReviewTask).where(ReviewTask.id == UUID(task_id)))
+            if review_task is None:
+                raise
+
+            _mark_review_failed(
+                db,
+                review_task,
+                error_message="Fatal Error: OpenAI API quota exhausted (insufficient_quota)",
+            )
+            return
         except Exception as exc:
             current_status = ReviewTaskStatus(review_task.status)
             db.rollback()

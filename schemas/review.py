@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -19,6 +20,8 @@ class ExternalReferenceSchema(BaseModel):
     authors: list[str] = Field(default_factory=list)
     published_date: str | None = None
     summary: str | None = None
+    citation_count: int | None = None
+    influential_citation_count: int | None = None
 
 
 class ReviewResultSchema(BaseModel):
@@ -31,6 +34,13 @@ class ReviewResultSchema(BaseModel):
     weaknesses: list[str] = Field(default_factory=list)
     missing_evidence: list[str] = Field(default_factory=list)
     questions_for_authors: list[str] = Field(default_factory=list)
+    code_reproducibility_check: Optional[str] = Field(
+        ...,
+        description=(
+            "Summarize the health, accessibility, and maintenance signals of any public GitHub "
+            "repository mentioned by the authors, and note gracefully if the external tool failed."
+        ),
+    )
     external_references_checked: list[ExternalReferenceSchema] = Field(default_factory=list)
 
 

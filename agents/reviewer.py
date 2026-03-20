@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import json
 import os
 import re
+import sys
 from typing import Any
 
+from mcp.client.session import ClientSession
+from mcp.client.stdio import StdioServerParameters, stdio_client
 from schemas.review import ExternalReferenceSchema, ReviewResultSchema
-from tools.arxiv_search import search_arxiv
 
 REVIEW_MODEL = os.getenv("OPENAI_REVIEW_MODEL", "gpt-4o-mini")
 REVIEW_TIMEOUT_SECONDS = float(os.getenv("OPENAI_REVIEW_TIMEOUT_SECONDS", "90"))
@@ -114,6 +117,8 @@ def _build_review_prompt(
         "Strengths and weaknesses should each contain concrete, reviewer-style points. "
         "Use missing_evidence for claims that could not be sufficiently verified. "
         "Use questions_for_authors for follow-up questions that would materially affect confidence. "
+        "Use code_reproducibility_check to summarize the health of any claimed public code repository, "
+        "or to note gracefully when the GitHub tool could not verify it. "
         "If external references are supplied later, incorporate them into the novelty and related-work assessment."
     )
 
@@ -245,6 +250,131 @@ def _arxiv_search_tool_definition() -> dict[str, Any]:
     }
 
 
+def _semantic_scholar_tool_definition() -> dict[str, Any]:
+    """Describe the Semantic Scholar academic graph tool to the model."""
+
+    return {
+        "type": "function",
+        "name": "search_semantic_scholar",
+        "description": (
+            "Search the broader Semantic Scholar academic graph across all domains to "
+            "find related papers, citation counts, and influential papers beyond ArXiv."
+        ),
+        "strict": True,
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "A citation-oriented or related-work query derived from the paper.",
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "How many Semantic Scholar matches to return.",
+                    "minimum": 1,
+                    "maximum": 5,
+                    "default": 3,
+                },
+            },
+            "required": ["query", "limit"],
+            "additionalProperties": False,
+        },
+    }
+
+
+def _github_check_tool_definition() -> dict[str, Any]:
+    """Describe the local GitHub repository verification tool to the model."""
+
+    return {
+        "type": "function",
+        "name": "check_github_repo",
+        "description": (
+            "Check whether a GitHub repository mentioned in the paper is real, reachable, "
+            "and plausibly maintained for code reproducibility assessment."
+        ),
+        "strict": True,
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "repo_url": {
+                    "type": "string",
+                    "description": "The GitHub repository URL claimed by the paper authors.",
+                }
+            },
+            "required": ["repo_url"],
+            "additionalProperties": False,
+        },
+    }
+
+
+def _execute_python_code_tool_definition() -> dict[str, Any]:
+    """Describe the local Python code sandbox tool to the model."""
+
+    return {
+        "type": "function",
+        "name": "execute_python_code",
+        "description": (
+            "Write and execute Python code in an isolated sandbox to verify mathematical "
+            "formulas, statistics, or algorithm logic mentioned in the paper. You must "
+            "explicitly print() the results you want to see."
+        ),
+        "strict": True,
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "description": "Python code to run. Use print() for any outputs you want returned.",
+                }
+            },
+            "required": ["code"],
+            "additionalProperties": False,
+        },
+    }
+
+
+async def _execute_mcp_tool(function_name: str, arguments: dict[str, Any]) -> str:
+    """Execute a reviewer tool through the local MCP stdio server."""
+
+    server_params = StdioServerParameters(
+        command=sys.executable,
+        args=[os.path.join(PROJECT_ROOT, "mcp_server.py")],
+    )
+
+    try:
+        async with stdio_client(server_params) as (read, write):
+            async with ClientSession(read, write) as session:
+                await session.initialize()
+                result = await session.call_tool(function_name, arguments)
+    except Exception as exc:
+        return (
+            f"Tool Error: MCP execution failed for {function_name} ({exc}). "
+            "Please rely solely on internal PDF context."
+        )
+
+    content = getattr(result, "content", None)
+    if not content:
+        return (
+            f"Tool Error: MCP execution failed for {function_name} (empty tool response). "
+            "Please rely solely on internal PDF context."
+        )
+
+    text_parts: list[str] = []
+    for item in content:
+        text_value = getattr(item, "text", None)
+        if text_value:
+            text_parts.append(str(text_value))
+            continue
+
+        if isinstance(item, dict) and item.get("text"):
+            text_parts.append(str(item["text"]))
+
+    if text_parts:
+        return "\n".join(text_parts)
+
+    return str(content)
+
+
 def _run_reasoning_and_tools(
     client: Any,
     *,
@@ -258,7 +388,10 @@ def _run_reasoning_and_tools(
         f"{review_prompt}\n\n"
         "Reasoning & tool execution phase:\n"
         "- First decide whether external novelty verification or related-work lookup is needed.\n"
-        "- If ArXiv context would materially improve the review, call search_arxiv.\n"
+        "- Use search_arxiv when you want recent preprints, novelty checks, or emerging related work that is commonly discussed on ArXiv.\n"
+        "- Use search_semantic_scholar when you need broader academic coverage, citation counts, influential papers, or stronger signals about the established literature.\n"
+        "- If the authors claim their code is publicly available and provide a GitHub URL, you MUST extract that URL and use the check_github_repo tool.\n"
+        "- If you need to verify mathematical equations, statistics, or logic, use the execute_python_code tool to run a Python script. Remember to print the output.\n"
         "- If the provided paper evidence is enough, do not call any tool.\n"
         "- Do not produce the final structured review yet."
     )
@@ -276,9 +409,14 @@ def _run_reasoning_and_tools(
                     ),
                 },
             ],
-            tools=[_arxiv_search_tool_definition()],
+            tools=[
+                _arxiv_search_tool_definition(),
+                _semantic_scholar_tool_definition(),
+                _github_check_tool_definition(),
+                _execute_python_code_tool_definition(),
+            ],
             parallel_tool_calls=False,
-            max_tool_calls=1,
+            max_tool_calls=4,
             temperature=0.2,
             max_output_tokens=700,
         )
@@ -287,20 +425,23 @@ def _run_reasoning_and_tools(
 
     tool_outputs: list[dict[str, str]] = []
     for item in initial_response.output:
-        if getattr(item, "type", None) != "function_call" or getattr(item, "name", None) != "search_arxiv":
+        if getattr(item, "type", None) != "function_call":
+            continue
+        function_name = getattr(item, "name", None)
+        if function_name not in {
+            "search_arxiv",
+            "search_semantic_scholar",
+            "check_github_repo",
+            "execute_python_code",
+        }:
             continue
 
         try:
             arguments = json.loads(item.arguments or "{}")
         except json.JSONDecodeError as exc:
-            tool_result = f"ArXiv tool arguments were invalid JSON: {exc}"
+            tool_result = f"Tool arguments were invalid JSON for {function_name}: {exc}"
         else:
-            query = str(arguments.get("query") or "").strip()
-            try:
-                max_results = int(arguments.get("max_results", 3))
-            except (TypeError, ValueError):
-                max_results = 3
-            tool_result = search_arxiv(query=query, max_results=max_results)
+            tool_result = asyncio.run(_execute_mcp_tool(function_name, arguments))
 
         tool_outputs.append(
             {
@@ -332,6 +473,12 @@ def generate_report(
         "Write a balanced peer-review style assessment grounded in the supplied evidence. "
         "Do not invent experimental details that are not supported by the inputs. "
         "If evidence is weak, say so in missing_evidence or questions_for_authors rather than overstating certainty. "
+        "Use search_arxiv for recent preprints, novelty checks, and emerging related work. "
+        "Use search_semantic_scholar when you need broader literature coverage, citation counts, or influential-paper signals. "
+        "When you add Semantic Scholar references to external_references_checked, populate citation_count and influential_citation_count whenever those values are available. "
+        "If the authors claim their code is publicly available and provide a GitHub URL, you MUST extract that URL and use the check_github_repo tool. "
+        "If you need to verify mathematical equations, statistics, or algorithm logic, you MUST use the execute_python_code tool and explicitly print the outputs you want to inspect. "
+        "If the tool fails, gracefully mention the failure in your final review. "
         "Return only the structured review result."
     )
 

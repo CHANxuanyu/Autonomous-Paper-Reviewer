@@ -594,6 +594,7 @@ def render_result_hero(result: dict[str, Any]) -> None:
 
 def render_results(payload: dict[str, Any]) -> None:
     result = payload.get("result_json") or {}
+    review_data = result
     if st.session_state.task_id and st.session_state.celebrated_task_id != st.session_state.task_id:
         st.balloons()
         st.session_state.celebrated_task_id = st.session_state.task_id
@@ -646,7 +647,19 @@ def render_results(payload: dict[str, Any]) -> None:
             st.success("The reviewer did not flag additional evidence gaps.")
 
     with arxiv_tab:
+        code_check = review_data.get("code_reproducibility_check")
+        if code_check:
+            st.markdown("### 💻 Code Reproducibility & Health")
+            if "Tool Error" in code_check or "WARNING" in code_check:
+                st.warning(code_check, icon="⚠️")
+            elif "No public code repository" in code_check:
+                st.caption("No open-source repository was detected or verified in this paper.")
+            else:
+                st.info(code_check, icon="✅")
+
         references = list(result.get("external_references_checked") or [])
+        if code_check and references:
+            st.markdown("### 🌐 External References Checked")
         if not references:
             st.info("No external ArXiv references were pulled for this review.")
         else:
@@ -655,12 +668,29 @@ def render_results(payload: dict[str, Any]) -> None:
                 authors = ", ".join(reference.get("authors") or []) or "Authors unavailable"
                 published_date = reference.get("published_date") or "Publication date unavailable"
                 summary = format_text(reference.get("summary") or "No summary available.")
+                citation_count = reference.get("citation_count")
+                influential_citation_count = reference.get("influential_citation_count")
+                citation_meta = ""
+                if citation_count is not None or influential_citation_count is not None:
+                    citation_parts: list[str] = []
+                    if citation_count is not None:
+                        citation_parts.append(
+                            f"📈 <strong>Citations:</strong> {format_text(citation_count)}"
+                        )
+                    if influential_citation_count is not None:
+                        citation_parts.append(
+                            f"🔥 <strong>Influential:</strong> {format_text(influential_citation_count)}"
+                        )
+                    citation_meta = (
+                        f"<div class=\"reference-meta\">{' | '.join(citation_parts)}</div>"
+                    )
                 st.markdown(
                     f"""
                     <div class="reference-card">
                         <div class="reference-title">{title}</div>
                         <div class="reference-meta"><strong>Authors</strong>: {format_text(authors)}</div>
                         <div class="reference-meta"><strong>Published</strong>: {format_text(published_date)}</div>
+                        {citation_meta}
                         <blockquote>{summary}</blockquote>
                     </div>
                     """,

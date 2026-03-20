@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import os
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from core.db import get_db
@@ -21,6 +22,12 @@ async def create_review(
     db: Session = Depends(get_db),
 ) -> ReviewCreateResponse:
     """Validate the request, create the task, and enqueue the worker job."""
+
+    if not os.environ.get("OPENAI_API_KEY", "").strip():
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="System Configuration Error: OPENAI_API_KEY is missing. Please configure it.",
+        )
 
     return await review_service.create_review_task(db=db, payload=payload)
 

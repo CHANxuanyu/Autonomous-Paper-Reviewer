@@ -1,62 +1,109 @@
-# 🦄 Autonomous AI Paper Reviewer
+# Academic Paper Analyzer
 
-![Python 3.12+](https://img.shields.io/badge/Python-3.12%2B-blue.svg)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.110%2B-009688.svg)
-![Celery](https://img.shields.io/badge/Celery-5.3%2B-37814A.svg)
-![pgvector](https://img.shields.io/badge/pgvector-Supported-336791.svg)
-![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4o-412991.svg)
+![Python](https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-Async%20API-009688?logo=fastapi&logoColor=white)
+![Celery](https://img.shields.io/badge/Celery-Distributed%20Workers-37814A?logo=celery&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-pgvector-336791?logo=postgresql&logoColor=white)
+![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4o-412991)
+![MCP](https://img.shields.io/badge/MCP-Tool%20Orchestration-5B5BD6)
+![Streamlit](https://img.shields.io/badge/Streamlit-Interactive%20UI-FF4B4B?logo=streamlit&logoColor=white)
 
-An enterprise-grade, multi-agent system that autonomously reviews academic papers. Moving beyond standard text-based RAG, this system implements **Multimodal Vision RAG**, real-time **ArXiv fact-checking**, and an **Asynchronous Event-Driven Architecture** to deliver expert-level, hallucination-free academic feedback.
+An **agentic multimodal academic peer-review system** that turns a paper PDF into an asynchronous, evidence-grounded review pipeline. Instead of treating peer review as a single prompt, this project combines **FastAPI**, **Celery**, **PostgreSQL + pgvector**, **OpenAI multimodal reasoning**, and the **Model Context Protocol (MCP)** to parse documents, retrieve semantic evidence, inspect charts and tables, call external research tools, and produce structured review reports.
 
+This repository is designed to showcase modern AI systems engineering rather than just prompt wiring. It demonstrates **multimodal RAG**, **persistent workflow state**, **tool-augmented agent loops**, and **sandboxed verification**, all surfaced through a polished Streamlit interface.
 
-## 🚀 Core Features
+> For a deep dive into the system's memory design, FSM, and MCP integration, please read the [Technical Architecture Whitepaper](TECHNICAL_ARCHITECTURE_EN.md).
 
-* 👁️ **Multimodal Vision RAG**: Utilizes `Unstructured` (hi-res strategy) to parse PDFs, isolating not just text, but accurately extracting and anchoring **Figures and Tables**. Feeds base64-encoded images to GPT-4o for authentic "visual" peer review.
-* 🕵️‍♂️ **Agentic Fact-Checking (Tool Calling)**: Employs the ReAct paradigm. The Reviewer Agent dynamically invokes an external `search_arxiv` tool to verify novelty and identify missing baseline comparisons in real-time.
-* ⚡ **Asynchronous & Decoupled Backend**: Built on **FastAPI** with **Celery + Redis** task queues. Safely offloads long-running LLM reasoning and heavy document vectorization, ensuring a non-blocking, highly responsive client experience.
-* 🗄️ **Robust Vector Retrieval**: Backed by **PostgreSQL & pgvector**, enabling hybrid retrieval strategies with exact source-citation to eliminate LLM hallucinations.
-* 🛡️ **Strict Structured Outputs**: Leverages Pydantic and OpenAI's strict structured output schema to guarantee 100% deterministic JSON report formats.
-* 🎨 **Polished UX/UI**: A beautiful Streamlit frontend featuring custom CSS, intuitive sidebar controls, immersive loading states, and elegant tabbed data presentation.
+## Why It Stands Out
 
-## 🧠 Architecture Overview
+- **Multimodal Vision Anchoring**: Parses PDFs with high-resolution structural extraction, isolates figures and tables, and binds them to the nearest semantic text chunks via token-distance anchoring.
+- **MCP-Driven Tool Orchestration**: The Reviewer Agent can route external validation through MCP tools such as `search_arxiv`, `search_semantic_scholar`, and `check_github_repo`.
+- **Autonomous Math Verification**: A sandboxed `execute_python_code` tool lets the agent write and run short Python programs to verify formulas, statistics, and algorithm logic.
+- **Persistent Memory via PostgreSQL FSM**: Long-running review tasks survive asynchronous boundaries through a durable state machine spanning `PENDING` to `COMPLETED`/`FAILED`.
+- **Asynchronous, Non-Blocking Backend**: Heavy parsing, embedding, retrieval, and reasoning are offloaded to Celery workers so the API layer stays responsive.
+- **Structured, Explainable Outputs**: Final reviews are enforced through Pydantic schemas and rendered in Streamlit with external references, code-health summaries, and live workflow progress.
 
-1.  **Ingestion**: User uploads a PDF. FastAPI delegates the heavy lifting to a Celery worker.
-2.  **Multimodal Parsing**: The PDF is chunked. Images/Tables are extracted, saved locally, and linked to the nearest semantic text chunk in PostgreSQL via pgvector.
-3.  **Planning Phase**: A Planner Agent extracts metadata and constructs a targeted retrieval strategy.
-4.  **Reasoning Phase (Tool Use)**: The Reviewer Agent retrieves vector chunks + linked images. It decides whether to search ArXiv to verify claims.
-5.  **Generation**: Using GPT-4o, it synthesizes the internal PDF context with external ArXiv references into a strict JSON schema.
-6.  **Polling**: The Streamlit UI polls FastAPI, updating the user with engaging UI state changes.
+## Quick Start
 
-## 🛠️ Getting Started
+### 1. Clone the repository
 
-### Prerequisites
-* Python 3.12+
-* PostgreSQL (with `pgvector` extension)
-* Redis (running on `localhost:6379`)
-* OpenAI API Key (with GPT-4o access)
+```bash
+git clone https://github.com/CHANxuanyu/Academic_Paper_Analyzer.git
+cd Academic_Paper_Analyzer
+```
 
-### Installation
+### 2. Create the virtual environment and install dependencies
 
-1. **Clone the repository:**
-   ```bash
-   git clone [https://github.com/CHANxuanyu/Academic_Paper_Analyzer.git](https://github.com/CHANxuanyu/Academic_Paper_Analyzer.git)
-   cd Academic_Paper_Analyzer
-2. **Environment Variables:**
-Create a .env file in the root directory:
-"OPENAI_API_KEY=sk-proj-your-api-key-here
-DATABASE_URL=postgresql+psycopg2://user:password@localhost:5432/dbname
-REDIS_URL=redis://localhost:6379/0"
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt streamlit requests mcp
+```
 
-3. **Bootstrap & Run:**
-We provide a convenient script to install dependencies, run DB migrations, and start all services (FastAPI, Celery, Streamlit):
- ```bash
-chmod +x start_servers.sh
+### 3. Configure environment variables
+
+Create a `.env` file in the project root:
+
+```env
+OPENAI_API_KEY=sk-your-key-here
+```
+
+Current local infrastructure defaults in code:
+
+- PostgreSQL: `postgresql+psycopg://user:pass@localhost:5432/paper_db`
+- Redis: `redis://localhost:6379/0`
+
+### 4. Start PostgreSQL and Redis
+
+```bash
+docker compose up -d
+```
+
+### 5. Bootstrap the local runtime
+
+This installs the OCR/system packages required by multimodal parsing, installs Python dependencies, and applies the lightweight DB migration used by the vision pipeline.
+
+```bash
 ./start_servers.sh --bootstrap
 ```
 
+### 6. Start the API and Celery worker
 
-🤝 Contributing
-Contributions, issues, and feature requests are welcome! Feel free to check the issues page.
+```bash
+./start_servers.sh --background
+```
 
-📝 License
-This project is MIT licensed.
+### 7. Launch the Streamlit UI
+
+```bash
+source .venv/bin/activate
+streamlit run app.py
+```
+
+Then open:
+
+- API docs: `http://127.0.0.1:8000/docs`
+- Streamlit UI: `http://localhost:8501`
+
+## System Snapshot
+
+| Layer | Responsibility |
+| --- | --- |
+| FastAPI | Upload boundary, task creation, polling endpoints |
+| Celery + Redis | Asynchronous execution and retry orchestration |
+| PostgreSQL + pgvector | Task state, durable memory, semantic retrieval |
+| Reviewer Agent | Multimodal reasoning, MCP tool use, structured review generation |
+| MCP Server | External research tools and sandboxed code execution |
+| Streamlit | Live workflow visibility and polished result rendering |
+
+## Deep Dive
+
+The repository includes a full technical whitepaper covering:
+
+- asynchronous finite-state orchestration
+- multimodal context binding and visual anchoring
+- MCP client/server tool execution
+- sandbox isolation for autonomous code verification
+- idempotency, retries, and graceful degradation patterns
+
+Read it here: [TECHNICAL_ARCHITECTURE_EN.md](TECHNICAL_ARCHITECTURE_EN.md)
