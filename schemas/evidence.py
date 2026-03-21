@@ -19,6 +19,8 @@ class EvidenceRead(BaseModel):
     chunk_id: UUID
     evidence_type: EvidenceType
     page_number: int | None = None
+    section_name: str | None = None
+    linked_image_path: str | None = None
     chunk_text: str
 
 

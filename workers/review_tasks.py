@@ -18,7 +18,7 @@ from models.evidence import Evidence
 from models.review_task import ReviewTask
 from models.user import User
 from models.vector_chunk import VectorChunk
-from agents import orchestrator, reviewer
+from agents import claim_verifier, orchestrator, reviewer
 from rag import chunker, embedder, parser, retriever
 from repositories import evidence_repository
 from schemas.enums import DocumentStatus, ReviewTaskStatus
@@ -29,6 +29,7 @@ STAGE_RETRY_LIMITS: dict[ReviewTaskStatus, int] = {
     ReviewTaskStatus.VECTORIZING: 3,
     ReviewTaskStatus.AGENT_PLANNING: 2,
     ReviewTaskStatus.EVIDENCE_RETRIEVAL: 2,
+    ReviewTaskStatus.CLAIM_VERIFICATION: 2,
     ReviewTaskStatus.REPORT_GENERATING: 2,
 }
 
@@ -182,9 +183,27 @@ def run_review_task(self: Task, task_id: str) -> None:
                 # Section 9 allows one broader retrieval fallback before treating this as a hard failure.
                 evidences = retriever.retrieve_evidences(document.id, review_plan, broaden=True)
 
+            _set_review_status(db, review_task, ReviewTaskStatus.CLAIM_VERIFICATION)
+            claim_verification_result = claim_verifier.verify_claims_for_document(
+                parsed_document=parsed_document,
+                review_plan=review_plan,
+                evidences=evidences,
+                document_id=document.id,
+                enable_external_checks=True,
+            )
+            claim_verifications = list(claim_verification_result.get("claim_verifications") or [])
+            claim_verification_summary = claim_verification_result.get("claim_verification_summary")
+            evidences = list(claim_verification_result.get("evidences") or evidences)
+
             _set_review_status(db, review_task, ReviewTaskStatus.REPORT_GENERATING)
-            report_payload = reviewer.generate_report(parsed_document, review_plan, evidences)
-            validated_report = ReviewResultSchema.model_validate(report_payload).model_dump()
+            report_payload = reviewer.generate_report(
+                parsed_document,
+                review_plan,
+                evidences,
+                claim_verifications=claim_verifications,
+                claim_verification_summary=claim_verification_summary,
+            )
+            validated_report = ReviewResultSchema.model_validate(report_payload).model_dump(mode="json")
 
             # Persist result_json and evidences together so the API never exposes partial output.
             persist_review_output(

@@ -16,6 +16,7 @@ STATUS_FLOW = [
     "VECTORIZING",
     "AGENT_PLANNING",
     "EVIDENCE_RETRIEVAL",
+    "CLAIM_VERIFICATION",
     "REPORT_GENERATING",
     "COMPLETED",
 ]
@@ -25,6 +26,7 @@ STATUS_COPY = {
     "VECTORIZING": "Building multimodal chunks, embeddings, and visual anchors.",
     "AGENT_PLANNING": "Drafting the review strategy and deciding what deserves attention.",
     "EVIDENCE_RETRIEVAL": "Pulling text evidence and linked figures from the vector index.",
+    "CLAIM_VERIFICATION": "Verifying candidate claims against retrieved passages and flagging external-check needs.",
     "REPORT_GENERATING": "Running multimodal reasoning and optional ArXiv fact-checking.",
     "COMPLETED": "The review is ready to read.",
     "FAILED": "The pipeline stopped before the review could finish.",
@@ -35,6 +37,7 @@ STATUS_LABELS = {
     "VECTORIZING": "🧩 Chunking & extracting images...",
     "AGENT_PLANNING": "🧠 Planning the review strategy...",
     "EVIDENCE_RETRIEVAL": "🔎 Retrieving evidence & visual context...",
+    "CLAIM_VERIFICATION": "🧾 Verifying claims against evidence...",
     "REPORT_GENERATING": "🕵️‍♂️ Agent fact-checking on ArXiv...",
     "COMPLETED": "✨ Review Completed!",
     "FAILED": "⚠️ Review interrupted",
@@ -592,6 +595,158 @@ def render_result_hero(result: dict[str, Any]) -> None:
     )
 
 
+def render_claim_verifications(
+    claim_verifications: list[dict[str, Any]],
+    *,
+    claim_verification_summary: dict[str, Any] | None = None,
+) -> None:
+    if not claim_verifications:
+        st.info("No claim verification outputs were produced for this run.")
+        return
+
+    if claim_verification_summary:
+        st.caption(
+            " | ".join(
+                [
+                    f"Claims: {claim_verification_summary.get('total_claims', 0)}",
+                    f"Flagged for external check: {claim_verification_summary.get('claims_needing_external_check', 0)}",
+                    f"Claims with checks run: {claim_verification_summary.get('claims_with_external_checks', 0)}",
+                    f"Tool calls: {claim_verification_summary.get('external_checks_run', 0)}",
+                ]
+            )
+        )
+
+    summary_rows: list[dict[str, Any]] = []
+    for verification in claim_verifications:
+        external_checks = list(verification.get("external_checks_run") or [])
+        tools_used = ", ".join(
+            str(check.get("tool_name") or "").replace("_", " ")
+            for check in external_checks
+            if check.get("tool_name")
+        )
+        summary_rows.append(
+            {
+                "Claim": verification.get("claim_text"),
+                "Final Verdict": str(verification.get("verdict") or "").replace("_", " ").title(),
+                "Internal Verdict": str(verification.get("internal_verdict") or "").replace("_", " ").title() or "n/a",
+                "Confidence": verification.get("confidence"),
+                "Source": str(verification.get("claim_source") or "").replace("_", " ").title(),
+                "Pages": ", ".join(str(page) for page in verification.get("page_numbers") or []) or "n/a",
+                "External Status": str(verification.get("external_verification_status") or "not_needed").replace("_", " ").title(),
+                "Tools": tools_used or "n/a",
+                "Verdict Changed": "Yes" if verification.get("verdict_changed_by_external") else "No",
+            }
+        )
+
+    st.dataframe(summary_rows, use_container_width=True, hide_index=True)
+
+    for index, verification in enumerate(claim_verifications, start=1):
+        claim_text = verification.get("claim_text") or f"Claim {index}"
+        verdict = str(verification.get("verdict") or "").replace("_", " ").title()
+        with st.expander(f"{index}. {claim_text} [{verdict}]"):
+            st.caption(
+                f"Source: {str(verification.get('claim_source') or '').replace('_', ' ').title() or 'Unknown'}"
+            )
+            if verification.get("aspect"):
+                st.write(f"Aspect: {verification['aspect']}")
+            if verification.get("internal_verdict"):
+                st.write(
+                    "Internal verdict: "
+                    f"{str(verification.get('internal_verdict') or '').replace('_', ' ').title()} "
+                    f"(confidence {verification.get('internal_confidence')})"
+                )
+            if verification.get("external_verification_status"):
+                st.write(
+                    "External verification: "
+                    f"{str(verification.get('external_verification_status') or '').replace('_', ' ').title()}"
+                )
+            if verification.get("external_resolution_status"):
+                st.write(
+                    "External resolution: "
+                    f"{str(verification.get('external_resolution_status') or '').replace('_', ' ').title()}"
+                )
+            if verification.get("notes"):
+                st.write(verification["notes"])
+            if verification.get("external_check_reason"):
+                st.warning(verification["external_check_reason"])
+            if verification.get("external_check_summary"):
+                st.markdown("#### External Check Summary")
+                st.info(verification["external_check_summary"])
+            if verification.get("verdict_change_reason"):
+                st.caption(f"Verdict change reason: {verification['verdict_change_reason']}")
+
+            quotes = list(verification.get("evidence_quotes") or [])
+            if quotes:
+                st.markdown("#### Evidence Quotes")
+                for quote in quotes:
+                    st.info(quote)
+
+            image_paths = list(verification.get("linked_image_paths") or [])
+            if image_paths:
+                st.caption("Linked visual evidence: " + ", ".join(image_paths))
+
+            external_checks = list(verification.get("external_checks_run") or [])
+            if external_checks:
+                st.markdown("#### External Checks")
+                for check in external_checks:
+                    tool_name = str(check.get("tool_name") or "").replace("_", " ").title() or "Unknown tool"
+                    status = str(check.get("status") or "").replace("_", " ").title() or "Unknown"
+                    st.write(f"{tool_name} [{status}]")
+                    if check.get("request_payload"):
+                        st.caption(f"Request: {check['request_payload']}")
+                    if check.get("summary"):
+                        st.write(check["summary"])
+                    source_urls = list(check.get("source_urls") or [])
+                    if source_urls:
+                        st.caption("Sources: " + ", ".join(source_urls))
+
+            external_evidence_records = list(verification.get("external_evidence_records") or [])
+            if external_evidence_records:
+                st.markdown("#### Typed External Evidence")
+                for evidence_index, record in enumerate(external_evidence_records, start=1):
+                    tool_name = str(record.get("tool_name") or "").replace("_", " ").title() or "Unknown tool"
+                    impact = str(record.get("support_assessment") or "").replace("_", " ").title() or "Unknown"
+                    strength = str(record.get("support_strength") or "").replace("_", " ").title() or "Unknown"
+                    st.write(f"{evidence_index}. {tool_name} [{impact}, {strength}]")
+                    st.caption(
+                        f"Match: {str(record.get('match_status') or '').replace('_', ' ').title() or 'Unknown'} | "
+                        f"Confidence: {record.get('confidence') if record.get('confidence') is not None else 'n/a'}"
+                    )
+                    if record.get("summary"):
+                        st.write(record["summary"])
+                    if record.get("source_url"):
+                        st.caption(f"Source URL: {record['source_url']}")
+
+                    github_payload = record.get("github") or {}
+                    if github_payload:
+                        st.caption(
+                            "GitHub: "
+                            f"{github_payload.get('owner') or 'unknown'}/{github_payload.get('name') or 'unknown'} | "
+                            f"stars={github_payload.get('stars')} | forks={github_payload.get('forks')} | "
+                            f"default_branch={github_payload.get('default_branch') or 'unknown'} | "
+                            f"has_readme={github_payload.get('has_readme')} | has_releases={github_payload.get('has_releases')}"
+                        )
+
+                    semantic_payload = record.get("semantic_scholar") or {}
+                    if semantic_payload:
+                        st.caption(
+                            "Semantic Scholar: "
+                            f"{semantic_payload.get('matched_paper_title') or 'unknown title'} | "
+                            f"year={semantic_payload.get('year')} | "
+                            f"citations={semantic_payload.get('citation_count')} | "
+                            f"influential={semantic_payload.get('influential_citation_count')}"
+                        )
+
+                    arxiv_payload = record.get("arxiv") or {}
+                    if arxiv_payload:
+                        st.caption(
+                            "ArXiv: "
+                            f"{arxiv_payload.get('title') or 'unknown title'} | "
+                            f"id={arxiv_payload.get('arxiv_id') or 'unknown'} | "
+                            f"published={arxiv_payload.get('published_date') or 'unknown'}"
+                        )
+
+
 def render_results(payload: dict[str, Any]) -> None:
     result = payload.get("result_json") or {}
     review_data = result
@@ -601,8 +756,8 @@ def render_results(payload: dict[str, Any]) -> None:
 
     render_result_hero(result)
 
-    summary_tab, strengths_tab, weaknesses_tab, questions_tab, arxiv_tab = st.tabs(
-        ["📝 Summary", "💡 Strengths", "🎯 Weaknesses", "❓ Questions", "🌐 ArXiv Fact-Check"]
+    summary_tab, claims_tab, strengths_tab, weaknesses_tab, questions_tab, arxiv_tab = st.tabs(
+        ["📝 Summary", "🧾 Claims", "💡 Strengths", "🎯 Weaknesses", "❓ Questions", "🌐 ArXiv Fact-Check"]
     )
 
     with summary_tab:
@@ -611,6 +766,13 @@ def render_results(payload: dict[str, Any]) -> None:
             st.markdown("#### Focus Areas")
             render_focus_pills(st.session_state.focus_areas)
         st.caption("The report below is generated from document evidence, linked visuals, and optional external references.")
+
+    with claims_tab:
+        st.markdown("#### Claim Verification")
+        render_claim_verifications(
+            list(result.get("claim_verifications") or []),
+            claim_verification_summary=result.get("claim_verification_summary"),
+        )
 
     with strengths_tab:
         strengths = list(result.get("strengths") or [])

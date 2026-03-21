@@ -2,18 +2,16 @@
 
 from __future__ import annotations
 
-import json
 import os
 import subprocess
 import sys
 import tempfile
-from urllib import parse, request
-from urllib.error import URLError
 
 from mcp.server.fastmcp import FastMCP
 
 from tools.arxiv_search import search_arxiv as _search_arxiv
 from tools.github_check import check_github_repo as _check_github_repo
+from tools.semantic_scholar_search import search_semantic_scholar as _search_semantic_scholar
 
 mcp = FastMCP("AcademicReviewerTools")
 
@@ -27,8 +25,8 @@ def search_arxiv(query: str, max_results: int = 3) -> str:
         max_results: Maximum number of ArXiv matches to summarize.
 
     Returns:
-        A natural-language summary of the top ArXiv matches, or a graceful
-        fallback message when the lookup cannot be completed.
+        A JSON string containing normalized ArXiv search results, or a graceful
+        fallback payload when the lookup cannot be completed.
     """
 
     return _search_arxiv(query=query, max_results=max_results)
@@ -43,69 +41,11 @@ def search_semantic_scholar(query: str, limit: int = 3) -> str:
         limit: Maximum number of matching papers to summarize.
 
     Returns:
-        A readable summary of matching papers across the broader Semantic
-        Scholar academic graph, including citation counts and URLs, or a
-        graceful fallback message if the external API fails.
+        A JSON string containing normalized Semantic Scholar matches and
+        citation metadata, or a graceful fallback payload if the API fails.
     """
 
-    normalized_query = " ".join((query or "").split())
-    if not normalized_query:
-        return "Semantic Scholar search skipped because no query was provided."
-
-    safe_limit = max(1, min(limit, 5))
-    encoded_query = parse.quote(normalized_query)
-    api_url = (
-        "https://api.semanticscholar.org/graph/v1/paper/search"
-        f"?query={encoded_query}&limit={safe_limit}"
-        "&fields=title,authors,year,citationCount,influentialCitationCount,url"
-    )
-    api_request = request.Request(
-        api_url,
-        headers={"User-Agent": "Academic-Paper-Analyzer-Agent/1.0"},
-    )
-
-    try:
-        with request.urlopen(api_request, timeout=15) as response:
-            payload = json.loads(response.read().decode("utf-8"))
-    except URLError as exc:
-        return (
-            f"Semantic Scholar search failed due to network error ({exc}). "
-            "Please rely solely on the provided internal PDF context."
-        )
-    except json.JSONDecodeError as exc:
-        return (
-            f"Semantic Scholar search failed due to invalid JSON response ({exc}). "
-            "Please rely solely on the provided internal PDF context."
-        )
-    except Exception as exc:
-        return (
-            f"Semantic Scholar search failed due to unexpected API error ({exc}). "
-            "Please rely solely on the provided internal PDF context."
-        )
-
-    papers = payload.get("data") or []
-    if not papers:
-        return f"No Semantic Scholar results found for query '{normalized_query}'."
-
-    lines = [f"Semantic Scholar results for query: {normalized_query}"]
-    for paper in papers:
-        title = str(paper.get("title") or "Untitled")
-        year = str(paper.get("year") or "Unknown year")
-        authors = paper.get("authors") or []
-        author_names = ", ".join(
-            str(author.get("name") or "").strip() for author in authors if str(author.get("name") or "").strip()
-        ) or "Unknown authors"
-        citation_count = int(paper.get("citationCount") or 0)
-        influential_citation_count = int(paper.get("influentialCitationCount") or 0)
-        paper_url = str(paper.get("url") or "No URL available")
-        lines.append(
-            "- "
-            f"{title} ({year}) by {author_names}. "
-            f"Citations: {citation_count} (Influential: {influential_citation_count}). "
-            f"URL: {paper_url}"
-        )
-
-    return "\n".join(lines)
+    return _search_semantic_scholar(query=query, limit=limit)
 
 
 @mcp.tool()
@@ -116,9 +56,8 @@ def check_github_repo(repo_url: str) -> str:
         repo_url: Public GitHub repository URL cited by the paper authors.
 
     Returns:
-        A natural-language assessment of repository availability, maintenance
-        signals, and code reproducibility health, or a graceful fallback
-        message if the external check fails.
+        A JSON string containing normalized repository availability and health
+        signals, or a graceful fallback payload if the external check fails.
     """
 
     return _check_github_repo(repo_url=repo_url)

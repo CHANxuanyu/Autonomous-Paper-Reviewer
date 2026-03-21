@@ -1,0 +1,62 @@
+{
+  "dataset": "curated_tool_needed_v1",
+  "description": "Small curated benchmark slice for claim-level evaluation on internal-only versus tool-needed claims.",
+  "papers": [
+    {
+      "paper_id": "cubic_discrete_diffusion",
+      "title": "Cubic Discrete Diffusion: Discrete Visual Generation on High-Dimensional Representation Tokens",
+      "pdf_path": "benchmarks/data/pdfs/cubic_discrete_diffusion.pdf",
+      "source_url": "https://arxiv.org/abs/2603.19232",
+      "download_url": "https://arxiv.org/pdf/2603.19232",
+      "local_candidate_paths": [
+        "uploads/25e7ca7a-bb1b-4fd6-8318-c5a806c9a0ee.pdf",
+        "uploads/4cfb4832-ac67-4fca-b30c-17e1acb2367e.pdf",
+        "uploads/590a7384-2c43-40c1-b231-98afb81f919f.pdf",
+        "uploads/e2d22dae-3491-4081-b058-985c0c877c83.pdf",
+        "uploads/f9ec108b-7233-4823-a525-d78a1ffcd4de.pdf"
+      ],
+      "claim_categories": [
+        "internal_only",
+        "github_needed",
+        "literature_needed",
+        "novelty_needed"
+      ]
+    },
+    {
+      "paper_id": "quantum_inspired_eda_tsp",
+      "title": "Quantum-Inspired Estimation Of Distribution Algorithm To Solve The Travelling Salesman Problem",
+      "pdf_path": "benchmarks/data/pdfs/quantum_inspired_eda_tsp.pdf",
+      "source_url": "https://cig.fi.upm.es/wp-content/uploads/2024/01/Quantum-Inspired_Estimation_Of_Distribution_Algorithm_To_Solve_The_Travelling_Salesman_Problem.pdf",
+      "download_url": "https://cig.fi.upm.es/wp-content/uploads/2024/01/Quantum-Inspired_Estimation_Of_Distribution_Algorithm_To_Solve_The_Travelling_Salesman_Problem.pdf",
+      "local_candidate_paths": [
+        "uploads/00e63bfd-7908-41d3-bbb0-4d6b97267ad2.pdf",
+        "uploads/51841158-f96d-4762-900a-d3d586fc61d3.pdf",
+        "uploads/5a575fdf-7517-488a-843d-728d1f0c05d8.pdf",
+        "uploads/bb68f945-ca0b-4857-9833-e02e491c1dfa.pdf",
+        "uploads/c3d24951-d89b-4c48-8ed5-ec7ba9f9d1ba.pdf",
+        "uploads/dfeaa6f2-4b5b-4294-98cb-97967658f55e.pdf"
+      ],
+      "claim_categories": [
+        "internal_only",
+        "literature_needed",
+        "novelty_needed"
+      ]
+    },
+    {
+      "paper_id": "hc_mpf_data_assimilation",
+      "title": "Hierarchical Clustering based Multiple Particle Filtering for Data Assimilation",
+      "pdf_path": "benchmarks/data/pdfs/hc_mpf_data_assimilation.pdf",
+      "source_url": "https://doi.org/10.1109/SSP64130.2025.11073489",
+      "download_url": null,
+      "local_candidate_paths": [
+        "uploads/f52b152f-9bb3-4771-a0bb-ce7b09bb7034.pdf"
+      ],
+      "claim_categories": [
+        "internal_only",
+        "literature_needed",
+        "novelty_needed"
+      ],
+      "notes": "The IEEE landing page is public, but direct automated PDF retrieval may fail. The materialization helper falls back to the local fixture if present; otherwise place the PDF manually."
+    }
+  ]
+}

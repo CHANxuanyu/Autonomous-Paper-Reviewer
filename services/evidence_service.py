@@ -32,6 +32,8 @@ async def list_review_evidences(db: Session, task_id: UUID) -> EvidenceListRespo
             chunk_id=evidence.chunk_id,
             evidence_type=evidence.evidence_type,
             page_number=chunk.page_number,
+            section_name=chunk.section_name,
+            linked_image_path=chunk.linked_image_path,
             chunk_text=chunk.chunk_text,
         )
         for evidence, chunk in rows

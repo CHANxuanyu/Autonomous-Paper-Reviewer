@@ -56,3 +56,9 @@ node_modules/
 # OS metadata
 .DS_Store
 Thumbs.db
+
+
+__pycache__/
+*.pyc
+benchmarks/data/pdfs/*.pdf
+benchmarks/results/
